@@ -1,0 +1,39 @@
+{
+  "name": "qa-automation-archetype",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "cucumber-js --config cucumber.js --tags \"not @db\"",
+    "test:ui": "cucumber-js --config cucumber.js --tags \"@ui and not @db\"",
+    "test:smoke": "cucumber-js --config cucumber.js --tags \"@smoke and not @db\"",
+    "test:regression": "cucumber-js --config cucumber.js --tags \"@regression and not @db\"",
+    "test:db": "cucumber-js --config cucumber.js --tags \"@db\"",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "quality": "npm run typecheck && npm run lint && npm run format:check"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "12.6.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.58.0",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "playwright": "1.58.0",
+    "prettier": "^3.9.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.69.0"
+  },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "oracledb": "^6.10.0"
+  }
+}

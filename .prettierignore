@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Generated / artifacts
+reports/
+test-results/
+playwright-report/
+blob-report/
+coverage/
+*.tsbuildinfo
+
+# Historical refactor reports: not user-facing documentation, and reformatting
+# hundreds of already-approved lines just for T17 would add noise with no
+# value. Final user-facing docs (T19) are a separate, in-scope target.
+docs/refactor-progress/
+
+# Markdown documentation (README, AGENTS*.md): out of T17's scope on purpose
+# ("no reescribir AGENTS/docs durante T17" — a Prettier reformat is still an
+# unrequested diff to prose docs). T19 owns final documentation.
+*.md
+
+# Editor-specific, not a build/tooling config file.
+.vscode/
+
+# Lockfile: managed by npm, not meant to be hand-formatted.
+package-lock.json
