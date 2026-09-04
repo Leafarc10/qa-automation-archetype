@@ -111,8 +111,9 @@ export class OracleDatabaseClient implements DatabaseClient {
     try {
       const result = await connection.execute(query, binds, {
         autoCommit: options.autoCommit ?? true,
-        // Row shape preference set per call, not as global driver state — see
-        // T11 (previously `oracledb.outFormat = ...` mutated the module globally).
+        // Row shape preference set per call, not as global driver state (a
+        // prior version mutated `oracledb.outFormat` at module scope, which
+        // affected every pool sharing the process).
         outFormat: oracledb.OUT_FORMAT_OBJECT,
       });
 

@@ -24,6 +24,6 @@ export interface FilterCondition {
 /**
  * A finite set of identifiers (table or column names) a repository allows for
  * a given operation. Always supplied by the caller (repository code), never
- * inferred — QueryBuilder has no schema registry of its own (see T12).
+ * inferred — QueryBuilder has no schema registry of its own.
  */
 export type IdentifierList = readonly string[];

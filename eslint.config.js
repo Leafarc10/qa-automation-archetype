@@ -19,12 +19,12 @@ export default tseslint.config(
   },
   {
     // Non-type-aware on purpose: `recommendedTypeChecked` was evaluated and
-    // discarded (see T17 report) — it fires ~24 no-unsafe-* errors, all of
-    // them inside OracleDatabaseClient.ts, the one file that deliberately
-    // isolates the untyped `oracledb` driver behind an `any` boundary. That
-    // isolation is the point of the design (see T09/T10), not a bug; type-
-    // aware linting can't tell the difference, and `npm run typecheck`
-    // (tsc --noEmit) already provides full, real type safety separately.
+    // discarded — it fires ~24 no-unsafe-* errors, all of them inside
+    // OracleDatabaseClient.ts, the one file that deliberately isolates the
+    // untyped `oracledb` driver behind an `any` boundary. That isolation is
+    // the point of the design, not a bug; type-aware linting can't tell the
+    // difference, and `npm run typecheck` (tsc --noEmit) already provides
+    // full, real type safety separately.
     files: ['**/*.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
@@ -33,7 +33,7 @@ export default tseslint.config(
     rules: {
       // Kept strict on purpose: the archetype has exactly one `any` today
       // (an internal, isolated driver-shape alias), disabled file-by-file
-      // below with a documented reason — see T17 report.
+      // below with a documented reason.
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },

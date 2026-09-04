@@ -178,7 +178,7 @@ export class QueryBuilder {
 
   /* ==============================
      PAGINACIÓN — Oracle-specific (ROWNUM, Oracle 11g style).
-     Not a generic/multi-engine pagination helper; see T12 report.
+     Not a generic/multi-engine pagination helper.
   ============================== */
 
   static buildOraclePagination(baseQuery: string, limit: number): string {
@@ -246,7 +246,7 @@ export class QueryBuilder {
 
     // An UPDATE with no filters would touch every row in the table. The
     // archetype refuses this by default; a real "update all rows" use case
-    // would need its own explicit, clearly-named API — not this one (T12).
+    // would need its own explicit, clearly-named API — not this one.
     if (filters.length === 0) {
       throw new QueryBuilderError(
         'UPDATE requires at least one filter (WHERE); unconditional updates are not allowed.'

@@ -130,7 +130,6 @@ src/
 reports/
   cucumber/            Generated JSON/HTML reports (git-ignored, .gitkeep only)
 .github/workflows/      CI workflow
-docs/refactor-progress/ Historical record of the archetype's own refactor (see below)
 ```
 
 Each of these folders owns one responsibility: Pages/Components own UI, `database/` owns data access, `support/` owns cross-cutting test infrastructure, `config/` owns configuration. Business logic never lives in `support/` or `database/`.
@@ -402,7 +401,7 @@ Upload Cucumber reports (cucumber-reports artifact)
 
 CI runs with `DB_ENABLED=false` and the default `not @db` test suite — no Oracle credentials, no Oracle Instant Client, nothing to configure. `BASE_URL`/`HEADLESS`/`BROWSER`/`DB_ENABLED` are plain workflow `env` values (all public, non-sensitive) — not GitHub secrets.
 
-Only Chromium is installed in CI, for a fast signal; Firefox/WebKit were validated manually (see `docs/refactor-progress/T13-ui-example.md`) but are not part of the automated pipeline yet.
+Only Chromium is installed in CI, for a fast signal; Firefox/WebKit were validated manually but are not part of the automated pipeline yet.
 
 The `cucumber-reports` artifact upload uses `if: always()` (so reports are preserved even on failure) and `if-no-files-found: ignore` (so a missing report — e.g. because `quality` failed before tests ran — doesn't add a second, unrelated failure).
 
@@ -486,5 +485,3 @@ Try `npm run lint:fix` for auto-fixable issues first, then address whatever rema
 ## Internal Documentation
 
 Module-level `AGENTS-*.md` files (`src/database/AGENTS-database.md`, `support/AGENTS-support.md`, and the root `AGENTS.md`) document implementation details for contributors and AI coding assistants working in this repository.
-
-`docs/refactor-progress/` is a historical, internal record of how this archetype was transformed from a corporate test suite into a generic template — it is not required reading to use the archetype, and is kept for reference rather than linked from here task by task.

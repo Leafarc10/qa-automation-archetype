@@ -47,7 +47,7 @@ CustomWorld (support/world.ts)
 - **Support (CustomWorld, hooks, DB lifecycle):**
   [support/AGENTS-support.md](support/AGENTS-support.md)
 
-There is no separate AGENTS file for `features/`, `src/pages/`, `src/components/`, or `src/pageContainer/` — those are small enough today (one example UI flow, see `docs/refactor-progress/T13-ui-example.md`) that the code itself, plus `README.md`'s "UI Testing" section, is the reference. Add a module-level AGENTS file if/when that module grows enough to need one.
+There is no separate AGENTS file for `features/`, `src/pages/`, `src/components/`, or `src/pageContainer/` — those are small enough today (one example UI flow) that the code itself, plus `README.md`'s "UI Testing" section, is the reference. Add a module-level AGENTS file if/when that module grows enough to need one.
 
 ---
 
@@ -67,5 +67,3 @@ There is no separate AGENTS file for `features/`, `src/pages/`, `src/components/
 1. Identify the area of impact: UI (Page/Component), Steps, or DB (Repository/QueryBuilder).
 2. Go to the relevant module AGENTS file first (section 3).
 3. Only then open the concrete files to apply the change, following the patterns already documented.
-
-For historical context on how this archetype was derived from a corporate test suite (what was removed and why), see `docs/refactor-progress/` — not required reading to make a change, but useful if a decision seems surprising.

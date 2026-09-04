@@ -26,10 +26,9 @@ After(async function (this: CustomWorld) {
 AfterAll(async () => {
   // Reporting (JSON/HTML) is produced directly by Cucumber's own formatters
   // (see cucumber.js) — no custom post-processing here. This hook keeps only
-  // the DB lifecycle responsibility introduced in T11, with its original
-  // error handling preserved unchanged: a close failure is logged clearly
-  // but never thrown from here, so it can never be mistaken for a test
-  // failure or otherwise affect the run's real pass/fail outcome.
+  // the DB lifecycle responsibility: a close failure is logged clearly but
+  // never thrown from here, so it can never be mistaken for a test failure
+  // or otherwise affect the run's real pass/fail outcome.
   try {
     await closeDatabaseClient();
   } catch (err) {

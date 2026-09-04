@@ -12,6 +12,8 @@
 > 4. Todas las reglas ESLint propuestas en §4 disparan correctamente sobre fixtures de violación.
 > 5. **Gotcha crítico:** en ESLint flat config, `no-restricted-syntax` / `no-restricted-imports` **no se fusionan entre bloques** — un override posterior con el mismo nombre de regla **reemplaza** al anterior. Un override en `features/steps/**` desactivó silenciosamente el ban de `waitForTimeout`. Ver §4.4 y §7-R1.
 > 6. `no-restricted-properties` sobre `process.env` **rompe el propio test de config** (que necesita escribir env) → requiere whitelist de archivos de test. Ver §4.4 y §7-R2.
+>
+> **Nota sobre `docs/refactor-progress/`:** es documentación local/histórica (gitignored, `.gitignore:65`). Este plan la cita como antecedente de P1, pero no es necesaria para usar ni extender el framework — ningún archivo operativo debe apuntar a ella.
 
 ---
 

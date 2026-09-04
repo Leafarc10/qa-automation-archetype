@@ -50,13 +50,11 @@ Sole owner of the shared `DatabaseClient`:
 - `getDatabaseClient()` — returns the same shared instance to every caller (every scenario's `Before`).
 - `closeDatabaseClient()` — closes the client and clears the module-level reference; safe to call even if no client was ever created.
 
-Full lifecycle detail: `docs/refactor-progress/T11-oracle-pool-lifecycle.md`.
-
 ---
 
 ## 6. Reporting
 
-`cucumber.js` configures Cucumber's built-in formatters (`progress`, `json:reports/cucumber/cucumber-report.json`, `html:reports/cucumber/cucumber-report.html`). There is no custom reporter under `support/` or anywhere else in the codebase, and no Jenkins-specific output. See `docs/refactor-progress/T15-generic-reporting.md`.
+`cucumber.js` configures Cucumber's built-in formatters (`progress`, `json:reports/cucumber/cucumber-report.json`, `html:reports/cucumber/cucumber-report.html`). There is no custom reporter under `support/` or anywhere else in the codebase, and no Jenkins-specific output.
 
 ---
 

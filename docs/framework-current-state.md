@@ -5,6 +5,7 @@
 > **Alcance analizado:** `features/`, `support/`, `src/`, `cucumber.js`, `tsconfig.json`, `package.json`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`, `.env.example`, `.gitignore`, `.vscode/settings.json`, `.github/workflows/ci.yml`, `README.md`, `AGENTS.md`, `src/database/AGENTS-database.md`, `support/AGENTS-support.md`, `docs/refactor-progress/**` (como antecedente).
 > **Regla aplicada:** cuando documentación y código se contradicen, **manda el código**. Cada afirmación relevante lleva evidencia (`archivo:línea`).
 > **Verificación ejecutada:** `npm run quality` (read-only) → **PASS**. No se ejecutó `npm test` para no generar artefactos en `reports/`.
+> **Nota sobre `docs/refactor-progress/`:** es documentación local/histórica, está gitignored (`.gitignore:65`) y no viaja con el repo. Se cita en este documento como antecedente del relevamiento (así se armó este inventario), pero no es necesaria para usar ni extender el framework, y ningún archivo operativo del repo debe apuntar a ella.
 
 ---
 
