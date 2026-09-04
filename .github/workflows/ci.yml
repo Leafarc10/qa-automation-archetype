@@ -38,7 +38,7 @@ jobs:
       - name: Install Playwright (Chromium only)
         run: npx playwright install --with-deps chromium
 
-      - name: Quality (typecheck + lint + format:check)
+      - name: Quality (typecheck + lint + format:check + test:unit)
         run: npm run quality
 
       - name: Tests (excludes @db)

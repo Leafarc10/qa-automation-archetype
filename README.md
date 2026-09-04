@@ -375,9 +375,9 @@ Both come from Cucumber's own built-in formatters (configured in `cucumber.js`) 
 | `npm run lint:fix` | ESLint with `--fix` |
 | `npm run format` | Prettier, writing changes |
 | `npm run format:check` | Prettier, check only (no writes) |
-| `npm run quality` | `typecheck` + `lint` + `format:check`, in that order |
+| `npm run quality` | `typecheck` + `lint` + `format:check` + `test:unit`, in that order |
 
-`npm run quality` is a purely static gate — it never runs the test suite. Run `npm run quality` and `npm test` as two separate checks (see [Continuous Integration](#continuous-integration)).
+`npm run quality` runs the framework's own unit and architecture tests (`test:unit` — `src/**/*.test.ts`, `node --test`, no browser, no network) alongside the static checks. It still does **not** run the E2E Cucumber suite: `npm run quality` and `npm test` remain two separate checks (see [Continuous Integration](#continuous-integration)).
 
 ## Continuous Integration
 
