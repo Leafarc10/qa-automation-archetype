@@ -351,3 +351,102 @@ describe('architecture — every Feature file has at least one tag', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// A9/A10 — UI hierarchy invariants (T10.1, closing finding F-01 of
+// docs/ai-foundation-final-audit.md).
+//
+// Before this test existed, nothing stopped a new Component from extending
+// BasePage instead of BaseComponent — regaining goto/reload/waitForUrlContains,
+// the exact anti-pattern T08 removed from ExampleNavigationComponent — with
+// npm run quality staying green throughout. This needs a whole-program,
+// name-based check (which class does a given class extend, wherever it's
+// declared in the repo) that a single-file ESLint rule cannot express; it
+// reuses the same TypeScript AST technique as A4/A5/A6 above.
+// ---------------------------------------------------------------------------
+
+const PAGES_BASE_FILE = 'src/pages/base/BasePage.ts';
+const REQUIRED_PAGE_BASE_CLASS = 'BasePage';
+
+const COMPONENTS_BASE_FILE = 'src/components/base/BaseComponent.ts';
+const REQUIRED_COMPONENT_BASE_CLASS = 'BaseComponent';
+
+type ClassHeritage = { name: string; extendsName: string | undefined };
+
+/** Every class declared directly in the file, with the identifier its `extends` clause names — `undefined` if the class extends nothing, or extends something other than a simple identifier. */
+function getClassHeritages(sourceFile: ts.SourceFile): ClassHeritage[] {
+  const heritages: ClassHeritage[] = [];
+
+  function visit(node: ts.Node): void {
+    if (ts.isClassDeclaration(node) && node.name) {
+      const extendsClause = node.heritageClauses?.find(
+        (clause) => clause.token === ts.SyntaxKind.ExtendsKeyword
+      );
+      const extendsExpression = extendsClause?.types[0]?.expression;
+      const extendsName =
+        extendsExpression && ts.isIdentifier(extendsExpression)
+          ? extendsExpression.text
+          : undefined;
+
+      heritages.push({ name: node.name.text, extendsName });
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return heritages;
+}
+
+function findHierarchyOffenders(relativePaths: string[], requiredBaseClass: string): string[] {
+  const offenders: string[] = [];
+
+  for (const relativePath of relativePaths) {
+    for (const { name, extendsName } of getClassHeritages(readSourceFile(relativePath))) {
+      if (extendsName !== requiredBaseClass) {
+        offenders.push(`${relativePath} (class ${name} extends ${extendsName ?? 'nothing'})`);
+      }
+    }
+  }
+
+  return offenders;
+}
+
+describe('architecture — Page Objects extend BasePage', () => {
+  it('every concrete class under src/pages/** extends BasePage', () => {
+    const files = walkRepoFiles().filter(
+      (relativePath) =>
+        relativePath.startsWith('src/pages/') &&
+        relativePath.endsWith('.ts') &&
+        !relativePath.endsWith('.test.ts') &&
+        relativePath !== PAGES_BASE_FILE
+    );
+
+    const offenders = findHierarchyOffenders(files, REQUIRED_PAGE_BASE_CLASS);
+
+    assert.deepEqual(
+      offenders,
+      [],
+      `Every concrete Page Object must extend BasePage — never BaseComponent, nothing, or any other class. Offenders: ${offenders.join('; ') || '(none)'}`
+    );
+  });
+});
+
+describe('architecture — Components extend BaseComponent', () => {
+  it('every concrete class under src/components/** extends BaseComponent', () => {
+    const files = walkRepoFiles().filter(
+      (relativePath) =>
+        relativePath.startsWith('src/components/') &&
+        relativePath.endsWith('.ts') &&
+        !relativePath.endsWith('.test.ts') &&
+        relativePath !== COMPONENTS_BASE_FILE
+    );
+
+    const offenders = findHierarchyOffenders(files, REQUIRED_COMPONENT_BASE_CLASS);
+
+    assert.deepEqual(
+      offenders,
+      [],
+      `Components must extend BaseComponent. Components must never extend BasePage. Offenders: ${offenders.join('; ') || '(none)'}`
+    );
+  });
+});
