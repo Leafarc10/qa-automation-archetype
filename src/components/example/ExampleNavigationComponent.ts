@@ -18,6 +18,10 @@ export class ExampleNavigationComponent extends BasePage {
   }
 
   async expectLinkVisible(linkName: string): Promise<void> {
-    await this.waitForVisible(this.nav.getByRole('link', { name: linkName, exact: true }));
+    await this.waitForVisible(this.linkByName(linkName));
+  }
+
+  private linkByName(linkName: string): Locator {
+    return this.nav.getByRole('link', { name: linkName, exact: true });
   }
 }
