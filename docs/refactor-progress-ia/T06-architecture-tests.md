@@ -10,7 +10,7 @@
 
 Resolver la parte restante de P6/P7 del AI Foundation Plan:
 
-1. agregar tests de arquitectura para invariantes que [[T05-eslint-guardrails]] no puede expresar de forma suficientemente robusta (inspección de filesystem, análisis de un programa TypeScript completo en vez de un único archivo);
+1. agregar tests de arquitectura para invariantes que [T05-eslint-guardrails](T05-eslint-guardrails.md) no puede expresar de forma suficientemente robusta (inspección de filesystem, análisis de un programa TypeScript completo en vez de un único archivo);
 2. integrar `npm run test:unit` dentro de `npm run quality`, para que exista **un único comando** (`npm run quality`) que sea el gate principal para desarrolladores, CI y agentes de IA;
 3. mantener Cucumber como único runner E2E, sin agregar `playwright.config.ts`, `*.spec.ts`, ni escenarios funcionales nuevos;
 4. no agregar dependencias — usar únicamente `node:test`, `node:assert/strict`, `node:fs`, `node:path`, `node:url` y el compilador de TypeScript, ya presente como devDependency desde antes de esta tarea.
@@ -22,8 +22,8 @@ Resolver la parte restante de P6/P7 del AI Foundation Plan:
 Antes de editar nada se leyeron completos: `package.json`, `eslint.config.js`, `support/world.ts`, `cucumber.js`, `src/config/index.ts`, `src/database/clients/OracleDatabaseClient.ts`, `features/example/example.feature` (único `.feature` del repo), `tsconfig.json`, `src/database/builders/QueryBuilder.test.ts`, `src/config/index.test.ts`, `.github/workflows/ci.yml` y `README.md`, para confirmar el estado real en vez de asumirlo:
 
 - `git status`/`git diff` en blanco: working tree limpio, sin trabajo pendiente de una sesión anterior.
-- `quality` era `typecheck && lint && format:check` — **sin** `test:unit`, tal como quedó documentado en [[T03-querybuilder-unit-tests]] (deliberadamente diferido) y [[T04-config-unit-tests]].
-- `eslint.config.js` ya tenía los 8 guardrails de [[T05-eslint-guardrails]] (G1-G8), confirmados funcionando (`npm run lint` limpio).
+- `quality` era `typecheck && lint && format:check` — **sin** `test:unit`, tal como quedó documentado en [T03-querybuilder-unit-tests](T03-querybuilder-unit-tests.md) (deliberadamente diferido) y [T04-config-unit-tests](T04-config-unit-tests.md).
+- `eslint.config.js` ya tenía los 8 guardrails de [T05-eslint-guardrails](T05-eslint-guardrails.md) (G1-G8), confirmados funcionando (`npm run lint` limpio).
 - `support/world.ts` (45 líneas): `CustomWorld extends World` con exactamente las propiedades `browser`, `context`, `page`, `pages`, `repositories?`, `testContext` — coincide exactamente con la allowlist que pide esta tarea, y `setWorldConstructor(CustomWorld)` se llama una única vez, al final del archivo.
 - `OracleDatabaseClient.ts` confirmado (otra vez) usando `createRequire(import.meta.url)` + `require('oracledb')`, no `import` — el patrón real que ESLint no puede ver, exactamente el que esta tarea pide cubrir.
 - `features/example/example.feature`: único `.feature` del repo, con tags (`@ui @regression` a nivel de Feature, `@smoke` en el primer Scenario) — ya cumple A7 sin cambios.
@@ -59,7 +59,7 @@ Una función recursiva basada en `fs.readdirSync(dir, { withFileTypes: true })` 
 
 - `node_modules`, `.git`, `reports`, `test-results`, `playwright-report`, `blob-report`, `coverage`, `.cache`, `.vscode`, `.idea` (artefactos generados, VCS, estado de editor);
 - cualquier directorio cuyo nombre empiece con `.tmp-` (mismo patrón que ya usa `eslint.config.js`);
-- `docs/refactor-progress` (documentación histórica de un refactor anterior — ver [[T01-documentation-cleanup]] — ya excluida igual de ESLint y de git).
+- `docs/refactor-progress` (documentación histórica de un refactor anterior — ver [T01-documentation-cleanup](T01-documentation-cleanup.md) — ya excluida igual de ESLint y de git).
 
 A1 y A2 filtran esta lista por nombre de archivo (regex de `playwright.config.*` y sufijo `.spec.ts`, respectivamente). A6 la filtra por sufijo `.ts` y le aplica el análisis AST de la §4.3.
 
@@ -179,7 +179,7 @@ v24.13.1
 ℹ skipped 0
 ℹ todo 0
 ```
-57 = 49 preexistentes ([[T03-querybuilder-unit-tests]] + [[T04-config-unit-tests]]) + 8 nuevos de `architecture.test.ts` (A1, A2, A3, A4, A5, A6×2, A7).
+57 = 49 preexistentes ([T03-querybuilder-unit-tests](T03-querybuilder-unit-tests.md) + [T04-config-unit-tests](T04-config-unit-tests.md)) + 8 nuevos de `architecture.test.ts` (A1, A2, A3, A4, A5, A6×2, A7).
 
 ### 11.3. `npm run typecheck`
 PASS — sin salida.

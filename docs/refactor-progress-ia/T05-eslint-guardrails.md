@@ -8,11 +8,11 @@
 
 ## 1. Objetivo
 
-Resolver la parte ESLint de P6 del AI Foundation Plan: convertir en reglas de ESLint, automáticamente verificables, un conjunto de convenciones arquitectónicas que hoy solo existían como intención de diseño (visible en el código y en [[T01-documentation-cleanup]]/[[T02-world-cleanup]], pero no exigible por herramienta):
+Resolver la parte ESLint de P6 del AI Foundation Plan: convertir en reglas de ESLint, automáticamente verificables, un conjunto de convenciones arquitectónicas que hoy solo existían como intención de diseño (visible en el código y en [T01-documentation-cleanup](T01-documentation-cleanup.md)/[T02-world-cleanup](T02-world-cleanup.md), pero no exigible por herramienta):
 
 - Cucumber sigue siendo el único runner E2E; Playwright se usa solo como librería.
 - Los Steps son la frontera entre Cucumber y el resto del framework: no deben tocar Playwright, Pages, Components ni la capa de base de datos directamente.
-- `process.env` tiene un único dueño (`src/config/**`), salvo la excepción ya establecida en [[T04-config-unit-tests]] para los tests que necesitan simular distintos entornos.
+- `process.env` tiene un único dueño (`src/config/**`), salvo la excepción ya establecida en [T04-config-unit-tests](T04-config-unit-tests.md) para los tests que necesitan simular distintos entornos.
 - `oracledb` solo puede importarse desde la implementación autorizada del driver.
 
 Alcance explícitamente **excluido** de T05 (queda para T06 — Architecture Tests): verificación de `setWorldConstructor` único, allowlist de propiedades de `CustomWorld`, búsqueda por filesystem de `*.spec.ts`/`playwright.config.*`, inspección de `package.json`, detección de `createRequire('oracledb')`, tags obligatorios en `.feature`.
@@ -163,7 +163,7 @@ PASS — sin salida.
 ℹ skipped 0
 ℹ todo 0
 ```
-PASS — los 49 tests preexistentes ([[T03-querybuilder-unit-tests]] + [[T04-config-unit-tests]]) siguen pasando sin cambios, confirmando que los guardrails de ESLint no interfieren con el runner de `node --test`.
+PASS — los 49 tests preexistentes ([T03-querybuilder-unit-tests](T03-querybuilder-unit-tests.md) + [T04-config-unit-tests](T04-config-unit-tests.md)) siguen pasando sin cambios, confirmando que los guardrails de ESLint no interfieren con el runner de `node --test`.
 
 ### 9.4. `npm run format:check`
 Primera corrida: reportó `eslint.config.js` con problemas de estilo (el archivo recién editado no coincidía exactamente con Prettier). Se corrigió con `npx prettier --write eslint.config.js` (única acción de Prettier de esta tarea, limitada al archivo modificado por T05). Segunda corrida:
@@ -229,7 +229,7 @@ eslint.config.js | 194 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 3. **Los Steps no deben conocer Playwright directamente porque son la capa de traducción entre el lenguaje de negocio (Gherkin) y la implementación técnica, no la implementación técnica en sí.** Si un Step pudiera hacer `this.page.click(...)`, cada Step se volvería un acoplamiento directo a Playwright, exactamente lo que Page Objects (`this.pages`) existen para evitar; un cambio futuro de librería de automatización tendría que tocar cientos de Steps en vez de una capa de Pages. El mismo razonamiento aplica a `this.repositories` para la base de datos.
 
-4. **`process.env` necesita un único dueño porque es el único punto de entrada de configuración no tipado del proceso.** Si cualquier archivo pudiera leer `process.env` directamente, la validación fail-fast de `src/config/index.ts` (documentada y testeada en [[T04-config-unit-tests]]) dejaría de ser la única fuente de verdad: dos lugares podrían interpretar la misma variable de forma distinta, o un archivo podría leer una variable sin la validación/default que `config` ya le aplica. Los tests son la excepción documentada porque necesitan simular entornos distintos — no porque el principio no les aplique, sino porque su función es precisamente ejercitar esa validación.
+4. **`process.env` necesita un único dueño porque es el único punto de entrada de configuración no tipado del proceso.** Si cualquier archivo pudiera leer `process.env` directamente, la validación fail-fast de `src/config/index.ts` (documentada y testeada en [T04-config-unit-tests](T04-config-unit-tests.md)) dejaría de ser la única fuente de verdad: dos lugares podrían interpretar la misma variable de forma distinta, o un archivo podría leer una variable sin la validación/default que `config` ya le aplica. Los tests son la excepción documentada porque necesitan simular entornos distintos — no porque el principio no les aplique, sino porque su función es precisamente ejercitar esa validación.
 
 5. **Prohibir el runner de Playwright Test evita que se forme una arquitectura paralela de facto.** Si `test`/`describe`/`it` de `@playwright/test` estuvieran disponibles, nada impediría que, con el tiempo, aparecieran archivos `*.spec.ts` corriendo con `npx playwright test` en paralelo a Cucumber — dos runners E2E coexistiendo, cada uno con su propia noción de fixtures, reportes y configuración. G1+G7+G8 cierran esa puerta en tres capas (API del runner, convención de nombre de archivo, archivo de configuración del runner), no en una sola, precisamente porque cualquiera de las tres, por sí sola, podría bypassearse.
 

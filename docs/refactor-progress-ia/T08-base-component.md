@@ -16,7 +16,7 @@ BaseUiObject
 └── BaseComponent
 ```
 
-Sin duplicar wrappers (`click`/`fill`/`waitForVisible`/etc. deben vivir en un único lugar) y sin cambiar ningún comportamiento funcional existente — es un refactor de **estructura de clases**, no de lógica ni de locators (eso ya se resolvió en [[T07-canonical-locators]]).
+Sin duplicar wrappers (`click`/`fill`/`waitForVisible`/etc. deben vivir en un único lugar) y sin cambiar ningún comportamiento funcional existente — es un refactor de **estructura de clases**, no de lógica ni de locators (eso ya se resolvió en [T07-canonical-locators](T07-canonical-locators.md)).
 
 ---
 
@@ -24,7 +24,7 @@ Sin duplicar wrappers (`click`/`fill`/`waitForVisible`/etc. deben vivir en un ú
 
 Antes de editar nada se leyó completo: `src/pages/base/BasePage.ts`, `src/pages/example/ExamplePage.ts`, `src/components/example/ExampleNavigationComponent.ts` y `src/pageContainer/Pages.ts`.
 
-- `git status`/`git diff` en blanco: working tree limpio ([[T07-canonical-locators]] ya commiteado fuera de esta sesión, confirmado por `git log`).
+- `git status`/`git diff` en blanco: working tree limpio ([T07-canonical-locators](T07-canonical-locators.md) ya commiteado fuera de esta sesión, confirmado por `git log`).
 - `BasePage.ts` (112 líneas): una única clase con 20 métodos (contados exactos, ver §3), sin ninguna separación de responsabilidades — todo vive en el mismo archivo, incluidos los 3 métodos exclusivos de página completa mezclados entre los 17 métodos genéricos de UI.
 - `ExampleNavigationComponent extends BasePage`: heredaba, sin usarlos nunca, `goto`, `reload` y `waitForUrlContains` — exactamente el problema que describe P5.
 - `ExamplePage.ts` y `Pages.ts`: sin ningún acoplamiento a la jerarquía de clases más allá de `extends BasePage` / `new ExamplePage(page)` — no dependían de ningún detalle interno de `BasePage` que este refactor pudiera romper.
@@ -81,7 +81,7 @@ src/base/BaseUiObject.ts                 (17 métodos compartidos + protected re
 
 `src/base/BaseUiObject.ts` (nuevo). Contiene únicamente los 17 métodos clasificados como A en §3, agrupados en las mismas cuatro secciones que ya existían en `BasePage.ts` (Esperas, Acciones, Obtener Valores, Validaciones) — se preservó el agrupamiento original, no se reordenó nada.
 
-- `protected readonly page: Page`, asignada en el constructor con una propiedad explícita (`this.page = page`), **no** con una parameter property (`constructor(private readonly page: Page)`), tal como pedía la tarea explícitamente: las parameter properties son azúcar sintáctico de TypeScript que requiere transformación, no son "erasable syntax" — el runner nativo (`node --test` sobre `.ts`, usado desde [[T03-querybuilder-unit-tests]]) depende de que el código fuente use únicamente sintaxis que Node pueda *quitar* sin reescribir. La propiedad explícita + asignación en constructor es exactamente el patrón que `BasePage.ts` ya usaba antes de T08 (`protected page: Page; constructor(page: Page) { this.page = page; }`) — T08 solo le agregó `readonly` (una restricción de solo-compilación, sin efecto en runtime).
+- `protected readonly page: Page`, asignada en el constructor con una propiedad explícita (`this.page = page`), **no** con una parameter property (`constructor(private readonly page: Page)`), tal como pedía la tarea explícitamente: las parameter properties son azúcar sintáctico de TypeScript que requiere transformación, no son "erasable syntax" — el runner nativo (`node --test` sobre `.ts`, usado desde [T03-querybuilder-unit-tests](T03-querybuilder-unit-tests.md)) depende de que el código fuente use únicamente sintaxis que Node pueda *quitar* sin reescribir. La propiedad explícita + asignación en constructor es exactamente el patrón que `BasePage.ts` ya usaba antes de T08 (`protected page: Page; constructor(page: Page) { this.page = page; }`) — T08 solo le agregó `readonly` (una restricción de solo-compilación, sin efecto en runtime).
 - Import: `import { expect } from '@playwright/test'; import type { Locator, Page } from '@playwright/test';` — `expect` es un valor real (se invoca); `Locator`/`Page` son anotaciones de tipo puras, nunca usadas como valor dentro del archivo, así que se importan con `import type`, seed que además ya era el estilo usado en `ExamplePage.ts`/`ExampleNavigationComponent.ts` antes de T08.
 
 Ningún método fue reescrito: cada uno de los 17 se movió literalmente (mismo cuerpo, mismos nombres, mismos parámetros, mismos retornos).
@@ -143,7 +143,7 @@ Aporta exactamente lo que pedía la tarea, ni más ni menos:
 - `expectVisible()` y `linkByName()` ahora usan `this.root` en lugar de `this.nav` — sin ningún otro cambio.
 - Import de `BasePage` (`'../../pages/base/BasePage.js'`) reemplazado por `BaseComponent` (`'../base/BaseComponent.js'`) — el Component **ya no importa nada de `src/pages/**`**, tal como exigía la dirección de dependencias objetivo.
 
-**Semántica de locators preservada exactamente** (heredada intacta de [[T07-canonical-locators]]): mismo rol (`'navigation'`/`'link'`), mismo `name` (`'Main'`/el parámetro `linkName`), mismo `exact: true`, mismo scoping (el link sigue construyéndose a partir del root de navegación, nunca de `this.page` directamente).
+**Semántica de locators preservada exactamente** (heredada intacta de [T07-canonical-locators](T07-canonical-locators.md)): mismo rol (`'navigation'`/`'link'`), mismo `name` (`'Main'`/el parámetro `linkName`), mismo `exact: true`, mismo scoping (el link sigue construyéndose a partir del root de navegación, nunca de `this.page` directamente).
 
 ---
 
@@ -173,7 +173,7 @@ Aporta exactamente lo que pedía la tarea, ni más ni menos:
 - ✅ `ExamplePage` sigue extendiendo `BasePage`, sin cambios funcionales.
 - ✅ Ningún wrapper duplicado: los 17 métodos compartidos existen en **un solo lugar** (`BaseUiObject`); ni `BasePage` ni `BaseComponent` redeclaran ninguno.
 - ✅ Sin ciclos de imports: `BaseUiObject.ts` no importa nada de `pages/`ni `components/`; `BasePage.ts` y `BaseComponent.ts` importan solo desde `src/base/`; `ExampleNavigationComponent.ts` importa solo desde `src/components/base/` (nunca desde `src/pages/**`).
-- ✅ Sin auth, API, test data, screenshots, traces, logging, MCP, `CLAUDE.md`, agentes, retries, paralelismo, ni documentación general (eso es [[T09]]).
+- ✅ Sin auth, API, test data, screenshots, traces, logging, MCP, `CLAUDE.md`, agentes, retries, paralelismo, ni documentación general (eso es [T09-final-documentation](T09-final-documentation.md)).
 - ✅ Sin nuevas dependencias.
 
 ---
@@ -217,7 +217,7 @@ All matched files use Prettier code style!
 Los archivos nuevos/modificados ya cumplían el estilo de Prettier; no fue necesario `--write`.
 
 ### 12.4. `npm run quality`
-(incluye, desde [[T06-architecture-tests]]: `typecheck` + `lint` + `format:check` + `test:unit`)
+(incluye, desde [T06-architecture-tests](T06-architecture-tests.md): `typecheck` + `lint` + `format:check` + `test:unit`)
 
 ```
 ℹ tests 57

@@ -82,6 +82,7 @@ Los tests deben acceder a la BBDD **solo** a través de repositorios que extiend
 - **`buildOrderBy`:** valida `field` contra la allowlist y `direction` contra `'ASC' | 'DESC'` exclusivamente.
 - **`buildInsert`/`buildUpdate`:** `table` y cada columna se validan contra sus respectivas allowlists; un `data` vacío es error. `buildUpdate` además **rechaza filtros vacíos por defecto** (nunca genera un `UPDATE` sin `WHERE`); un "update global" real requeriría una API explícita separada, no implementada.
 - **`buildOraclePagination`** (antes `buildPagination`): sigue siendo Oracle-specific (`ROWNUM`), renombrado para que no se lea como paginación genérica multi-engine. No hay paginación genérica ni Postgres `LIMIT/OFFSET`.
+- **Cobertura de tests:** `builders/QueryBuilder.test.ts` es una suite unitaria permanente (`node --test`, corrida vía `npm run test:unit`, integrada a `npm run quality`) que protege específicamente el modelo de seguridad descrito arriba — binds nunca interpolados, allowlists de identificadores, validación en runtime de operadores/paginación. Cualquier cambio a `QueryBuilder.ts` que rompa una de estas garantías falla el quality gate, no solo una revisión manual.
 
 ---
 

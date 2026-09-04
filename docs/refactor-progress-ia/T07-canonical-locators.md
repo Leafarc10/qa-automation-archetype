@@ -10,7 +10,7 @@
 
 Resolver únicamente P4 del AI Foundation Plan — la inconsistencia del ejemplo canónico de locators, ya identificada en `docs/framework-current-state.md`: `ExamplePage` declaraba un locator (`heading`) en el constructor pero construía otro (`link`) inline dentro del método de assertion; `ExampleNavigationComponent` repetía exactamente el mismo patrón inconsistente (`nav` en el constructor, `link` inline en `expectLinkVisible`). Un desarrollador o un agente de IA que copiara "el ejemplo" tenía dos convenciones distintas a elegir, en un archivo de 33 líneas.
 
-T07 es exclusivamente un refactor estructural: separar "cómo encuentro el elemento" de "qué hago/verifico con el elemento", sin tocar `BasePage`/`BaseComponent` (eso es [[T08]]), sin agregar Pages/Components/Steps/Features nuevos, y sin cambiar ningún rol, nombre, `exact`, nivel, scope o comportamiento visible ya existente.
+T07 es exclusivamente un refactor estructural: separar "cómo encuentro el elemento" de "qué hago/verifico con el elemento", sin tocar `BasePage`/`BaseComponent` (eso es [T08-base-component](T08-base-component.md)), sin agregar Pages/Components/Steps/Features nuevos, y sin cambiar ningún rol, nombre, `exact`, nivel, scope o comportamiento visible ya existente.
 
 ---
 
@@ -19,7 +19,7 @@ T07 es exclusivamente un refactor estructural: separar "cómo encuentro el eleme
 Antes de editar nada se leyó completo: `src/pages/example/ExamplePage.ts`, `src/components/example/ExampleNavigationComponent.ts` y `src/pages/base/BasePage.ts`, y se buscaron explícitamente (`grep`) todos los usos de `getByRole`/`getByText`/`getByLabel`/`getByTestId`/`getByPlaceholder`/`getByAltText`/`getByTitle`/`locator(` en `src/**` y `features/**`.
 
 - `git status`/`git diff` en blanco: working tree limpio (T06 ya commiteado fuera de esta sesión, confirmado por `git log`).
-- **Inventario completo de locators del repo UI: exactamente 4, en solo dos archivos.** No existe ningún otro Page ni Component en el repo (`src/pages/base/BasePage.ts` no construye ningún `getByRole` propio — opera genéricamente sobre `Locator` recibido como parámetro), y `features/**` no contiene ningún locator (los Steps ya solo llaman a `this.pages.example.*`, sin locators — confirmado también por el guardrail G5 de [[T05-eslint-guardrails]]).
+- **Inventario completo de locators del repo UI: exactamente 4, en solo dos archivos.** No existe ningún otro Page ni Component en el repo (`src/pages/base/BasePage.ts` no construye ningún `getByRole` propio — opera genéricamente sobre `Locator` recibido como parámetro), y `features/**` no contiene ningún locator (los Steps ya solo llaman a `this.pages.example.*`, sin locators — confirmado también por el guardrail G5 de [T05-eslint-guardrails](T05-eslint-guardrails.md)).
 - `BasePage.ts`: sin cambios necesarios — es genérico, no declara locators propios, y no es parte del alcance de T07 (su separación de `BaseComponent` es T08).
 
 ---
@@ -101,7 +101,7 @@ Ambos diffs son puramente aditivos en estructura (una llamada de método en vez 
 
 - ✅ **Ningún locator estático fue tocado** — `heading` y `nav` permanecen exactamente como estaban antes de T07.
 - ✅ **Ninguna semántica de locator cambió** — mismo rol, mismo `name`/`level`, mismo `exact`, mismo scope, en ambos locators parametrizados.
-- ✅ `ExampleNavigationComponent` **sigue extendiendo `BasePage`** — no se tocó `extends BaseComponent` ni ninguna jerarquía de clases; eso es exclusivamente [[T08]].
+- ✅ `ExampleNavigationComponent` **sigue extendiendo `BasePage`** — no se tocó `extends BaseComponent` ni ninguna jerarquía de clases; eso es exclusivamente [T08-base-component](T08-base-component.md).
 - ✅ `BasePage.ts` — sin cambios.
 - ✅ Ningún Step (`features/steps/example.steps.ts`) ni ninguna Feature (`features/example/example.feature`) fue modificado.
 - ✅ Ningún Page/Component/Step/Feature **nuevo** fue creado.
@@ -113,7 +113,7 @@ Ambos diffs son puramente aditivos en estructura (una llamada de método en vez 
 ## 9. Validaciones ejecutadas
 
 ### 9.1. `npm run quality`
-(incluye, desde [[T06-architecture-tests]]: `typecheck` + `lint` + `format:check` + `test:unit`)
+(incluye, desde [T06-architecture-tests](T06-architecture-tests.md): `typecheck` + `lint` + `format:check` + `test:unit`)
 
 ```
 ℹ tests 57

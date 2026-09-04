@@ -20,7 +20,7 @@ Agregar una suite de tests unitarios permanente para `src/config/index.ts`, usan
 - la restauración segura de `process.env` entre casos;
 - las validaciones fail-fast del módulo (errores lanzados en tiempo de import).
 
-Esta tarea continúa el trabajo de [[T03-querybuilder-unit-tests]] (mismo runner, mismo patrón de import `.ts` explícito) y estaba explícitamente prevista como la "próxima tarea" al cierre de T03.
+Esta tarea continúa el trabajo de [T03-querybuilder-unit-tests](T03-querybuilder-unit-tests.md) (mismo runner, mismo patrón de import `.ts` explícito) y estaba explícitamente prevista como la "próxima tarea" al cierre de T03.
 
 ---
 
