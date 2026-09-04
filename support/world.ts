@@ -7,10 +7,6 @@ import { Pages } from '../src/pageContainer/Pages.js';
 // DatabaseClient exists (DB_ENABLED=true).
 import type { RepositoryContainer } from '../src/database/RepositoryContainer.js';
 
-type InitOptions = {
-  headless?: boolean;
-};
-
 // Free-form per-scenario state; Steps type it according to their own needs.
 export type TestContext = Record<string, unknown>;
 
@@ -23,15 +19,14 @@ export class CustomWorld extends World {
   // A fresh instance per World; never shared between scenarios.
   testContext: TestContext = {};
 
-  async init(options: InitOptions = {}): Promise<void> {
-    const { headless = config.headless } = options;
+  async init(): Promise<void> {
     const browserType = {
       chromium,
       firefox,
       webkit,
     }[config.browser];
 
-    this.browser = await browserType.launch({ headless });
+    this.browser = await browserType.launch({ headless: config.headless });
 
     this.context = await this.browser.newContext();
 
