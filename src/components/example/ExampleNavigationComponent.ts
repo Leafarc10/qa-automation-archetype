@@ -1,20 +1,17 @@
 import type { Locator, Page } from '@playwright/test';
-import { BasePage } from '../../pages/base/BasePage.js';
+import { BaseComponent } from '../base/BaseComponent.js';
 
 /**
  * Encapsulates the site's main navigation bar (present on every page).
  * Composed by ExamplePage; never referenced directly from Steps/Features.
  */
-export class ExampleNavigationComponent extends BasePage {
-  private readonly nav: Locator;
-
+export class ExampleNavigationComponent extends BaseComponent {
   constructor(page: Page) {
-    super(page);
-    this.nav = page.getByRole('navigation', { name: 'Main' });
+    super(page, page.getByRole('navigation', { name: 'Main' }));
   }
 
   async expectVisible(): Promise<void> {
-    await this.waitForVisible(this.nav);
+    await this.waitForVisible(this.root);
   }
 
   async expectLinkVisible(linkName: string): Promise<void> {
@@ -22,6 +19,6 @@ export class ExampleNavigationComponent extends BasePage {
   }
 
   private linkByName(linkName: string): Locator {
-    return this.nav.getByRole('link', { name: linkName, exact: true });
+    return this.root.getByRole('link', { name: linkName, exact: true });
   }
 }
