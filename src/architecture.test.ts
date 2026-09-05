@@ -259,23 +259,97 @@ describe('architecture — CustomWorld holds only infrastructure state', () => {
 // A6 — oracledb (no type declarations, a raw driver) may only be referenced
 // from the one authorized client implementation. ESLint's `no-restricted-imports`
 // (T05, G4) already blocks `import ... from 'oracledb'` everywhere else; this
-// test additionally catches the actual pattern OracleDatabaseClient.ts itself
-// uses — `createRequire` + `require('oracledb')` — which no import-based lint
-// rule can see, since it is never expressed as an `import`.
+// test additionally catches forms no import-based lint rule can see:
+//
+//  - `createRequire` + `require('oracledb')`, the actual pattern
+//    OracleDatabaseClient.ts itself uses, generalized (T10.3, closing finding
+//    F-02 of docs/ai-foundation-final-audit.md) to any local binding name the
+//    call is made through — not just a variable literally named `require`.
+//    The audit demonstrated that renaming it (`const req = createRequire(...);
+//    req('oracledb')`) defeated the original, name-literal check.
+//  - `await import('oracledb')` (or any dynamic `import(...)` of it), which
+//    the audit also demonstrated as an undetected bypass — and which mirrors
+//    the idiom support/databaseLifecycle.ts already uses for other modules.
+//
+// Known, deliberate limitation: this tracks only the direct, single-hop shape
+// `const X = createRequire(...); X('oracledb')` (plain identifier bindings,
+// not destructuring, member expressions, or re-exported/re-assigned
+// loaders). A full data-flow analysis was explicitly out of scope for this
+// task; the shapes above cover every variant T10's audit actually
+// demonstrated as reachable, without building a general-purpose analyzer.
 // ---------------------------------------------------------------------------
 
 const ORACLEDB_AUTHORIZED_FILE = 'src/database/clients/OracleDatabaseClient.ts';
+const ORACLEDB_MODULE_SPECIFIER = 'oracledb';
+const CREATE_REQUIRE_MODULE_SPECIFIERS = new Set(['module', 'node:module']);
+
+function isStringLiteralWithText(node: ts.Node, text: string): node is ts.StringLiteral {
+  return ts.isStringLiteral(node) && node.text === text;
+}
+
+/** Local names `createRequire` is bound to in this file, via `import { createRequire [as X] } from 'module' | 'node:module'` — `X` if aliased, `createRequire` itself otherwise. */
+function findCreateRequireLocalNames(sourceFile: ts.SourceFile): Set<string> {
+  const localNames = new Set<string>();
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      CREATE_REQUIRE_MODULE_SPECIFIERS.has(node.moduleSpecifier.text) &&
+      node.importClause?.namedBindings &&
+      ts.isNamedImports(node.importClause.namedBindings)
+    ) {
+      for (const specifier of node.importClause.namedBindings.elements) {
+        const importedName = (specifier.propertyName ?? specifier.name).text;
+        if (importedName === 'createRequire') localNames.add(specifier.name.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return localNames;
+}
+
+/** Local variable names bound as `const X = <createRequireLocalName>(...)` — every "require-like" loader this file creates, regardless of what it's called. */
+function findRequireLikeLocalNames(
+  sourceFile: ts.SourceFile,
+  createRequireLocalNames: Set<string>
+): Set<string> {
+  const localNames = new Set<string>();
+  if (createRequireLocalNames.size === 0) return localNames;
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isCallExpression(node.initializer) &&
+      ts.isIdentifier(node.initializer.expression) &&
+      createRequireLocalNames.has(node.initializer.expression.text)
+    ) {
+      localNames.add(node.name.text);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return localNames;
+}
 
 function referencesOracledb(sourceFile: ts.SourceFile): boolean {
+  const createRequireLocalNames = findCreateRequireLocalNames(sourceFile);
+  const requireLikeLocalNames = findRequireLikeLocalNames(sourceFile, createRequireLocalNames);
+
   let found = false;
 
   function visit(node: ts.Node): void {
     if (found) return;
 
+    // Case 1 — static import: `import ... from 'oracledb'`.
     if (
       ts.isImportDeclaration(node) &&
-      ts.isStringLiteral(node.moduleSpecifier) &&
-      node.moduleSpecifier.text === 'oracledb'
+      isStringLiteralWithText(node.moduleSpecifier, ORACLEDB_MODULE_SPECIFIER)
     ) {
       found = true;
       return;
@@ -283,14 +357,21 @@ function referencesOracledb(sourceFile: ts.SourceFile): boolean {
 
     if (
       ts.isCallExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === 'require' &&
       node.arguments.length === 1 &&
-      ts.isStringLiteral(node.arguments[0]) &&
-      node.arguments[0].text === 'oracledb'
+      isStringLiteralWithText(node.arguments[0], ORACLEDB_MODULE_SPECIFIER)
     ) {
-      found = true;
-      return;
+      // Case 2 — dynamic import: `await import('oracledb')`.
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        found = true;
+        return;
+      }
+
+      // Case 3 — createRequire-derived loader, any local binding name:
+      // `const req = createRequire(...); req('oracledb')`.
+      if (ts.isIdentifier(node.expression) && requireLikeLocalNames.has(node.expression.text)) {
+        found = true;
+        return;
+      }
     }
 
     ts.forEachChild(node, visit);
