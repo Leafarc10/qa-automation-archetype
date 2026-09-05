@@ -523,3 +523,38 @@ describe('architecture — Components scope UI access through root, not this.pag
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// A12 — Unit test discovery guardrail (T10.2, closing finding F-04 from
+// docs/ai-foundation-final-audit.md): every *.test.ts file in the repo must
+// live under one of test:unit's discovery roots (src/, support/, features/ —
+// the same three roots tsconfig.json's `include` already recognizes as real
+// TypeScript source). Before this test existed, a *.test.ts placed anywhere
+// else (e.g. scripts/foo.test.ts) would never be picked up by `node --test`,
+// so `npm run test:unit`/`npm run quality` would report an all-green result
+// while that test — including a deliberately failing one — silently never
+// ran. This is a filesystem-level check, the same category as A1/A2/A6
+// above: it needs to see which files exist across the whole repo, not the
+// syntax of any single file, and it complements — rather than duplicates —
+// the discovery glob in package.json's test:unit script itself.
+// ---------------------------------------------------------------------------
+
+const UNIT_TEST_DISCOVERY_ROOTS = ['src/', 'support/', 'features/'];
+
+describe('architecture — every unit test lives under a test:unit discovery root', () => {
+  it('has no *.test.ts file outside src/**, support/**, or features/**', () => {
+    const offenders = walkRepoFiles().filter(
+      (relativePath) =>
+        relativePath.endsWith('.test.ts') &&
+        !UNIT_TEST_DISCOVERY_ROOTS.some((root) => relativePath.startsWith(root))
+    );
+
+    assert.deepEqual(
+      offenders,
+      [],
+      `Unit test is outside the test:unit discovery roots and would never execute. ` +
+        `test:unit only runs ${UNIT_TEST_DISCOVERY_ROOTS.map((root) => `${root}**/*.test.ts`).join(', ')}. ` +
+        `Offenders: ${offenders.join(', ')}`
+    );
+  });
+});

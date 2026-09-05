@@ -432,7 +432,7 @@ Both come from Cucumber's own built-in formatters (configured in `cucumber.js`) 
 | `npm run format:check` | Prettier, check only (no writes) |
 | `npm run quality` | `typecheck` + `lint` + `format:check` + `test:unit`, in that order |
 
-`npm run quality` runs the framework's own unit and architecture tests (`test:unit` — `src/**/*.test.ts`, `node --test`, no browser, no network) alongside the static checks. `test:unit` currently runs three suites: `QueryBuilder` (`src/database/builders/QueryBuilder.test.ts`), configuration (`src/config/index.test.ts`), and architecture invariants (`src/architecture.test.ts` — see [Architecture Guardrails](#architecture-guardrails)). `npm run quality` still does **not** run the E2E Cucumber suite: it and `npm test` remain two separate checks (see [Continuous Integration](#continuous-integration)).
+`npm run quality` runs the framework's own unit and architecture tests (`test:unit` — `src/**/*.test.ts`, `support/**/*.test.ts`, and `features/**/*.test.ts`, via `node --test`, no browser, no network) alongside the static checks. Those three globs are exactly the TypeScript source roots `tsconfig.json` recognizes — a `*.test.ts` placed outside them would never run, so an architecture test (see [Architecture Guardrails](#architecture-guardrails)) fails the build if one ever is. `test:unit` currently runs three suites: `QueryBuilder` (`src/database/builders/QueryBuilder.test.ts`), configuration (`src/config/index.test.ts`), and architecture invariants (`src/architecture.test.ts`). `npm run quality` still does **not** run the E2E Cucumber suite: it and `npm test` remain two separate checks (see [Continuous Integration](#continuous-integration)).
 
 ## Architecture Guardrails
 
