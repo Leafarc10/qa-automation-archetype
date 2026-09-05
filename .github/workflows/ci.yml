@@ -15,11 +15,11 @@ jobs:
     timeout-minutes: 15
 
     env:
-      # Public demo app used by the T13 UI example — not a secret.
+      # Public demo app used by the UI example — not a secret.
       BASE_URL: https://playwright.dev
       HEADLESS: 'true'
       BROWSER: chromium
-      # Default CI run excludes @db (see T16): no Oracle credentials needed.
+      # Default CI run excludes @db: no Oracle credentials needed.
       DB_ENABLED: 'false'
 
     steps:
@@ -38,7 +38,7 @@ jobs:
       - name: Install Playwright (Chromium only)
         run: npx playwright install --with-deps chromium
 
-      - name: Quality (typecheck + lint + format:check)
+      - name: Quality (typecheck + lint + format:check + test:unit)
         run: npm run quality
 
       - name: Tests (excludes @db)

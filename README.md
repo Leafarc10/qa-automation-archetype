@@ -18,6 +18,7 @@ A reusable end-to-end testing archetype: Page Object Model, reusable Components,
 - [Database Testing](#database-testing)
 - [Reporting](#reporting)
 - [Code Quality](#code-quality)
+- [Architecture Guardrails](#architecture-guardrails)
 - [Continuous Integration](#continuous-integration)
 - [Recommended Workflow](#recommended-workflow)
 - [Best Practices](#best-practices)
@@ -78,6 +79,20 @@ Component (optional)
 Playwright
 ```
 
+**UI base classes:**
+
+```text
+BaseUiObject   (src/base/BaseUiObject.ts)
+   ├── BasePage       (src/pages/base/BasePage.ts)
+   └── BaseComponent  (src/components/base/BaseComponent.ts)
+```
+
+- `BaseUiObject` — the actions, waits, getters and assertions shared by every Page and Component (`click`, `fill`, `waitForVisible`, `expectContainsText`, etc.), all operating on a `Locator` received as a parameter. It owns `protected readonly page: Page`.
+- `BasePage` — adds the capabilities exclusive to a whole page: `goto`, `reload`, `waitForUrlContains`. Only a Page Object extends this.
+- `BaseComponent` — adds `protected readonly root: Locator`, the scope every locator inside the Component is built from. It does **not** get `goto`/`reload`/`waitForUrlContains` — a Component never navigates (enforced by the type system, not just convention).
+
+See [Page Objects](#page-objects) and [Components](#components) for the concrete pattern.
+
 **Database flow (architecture in place; not yet driven by a Cucumber Feature — see [Database Testing](#database-testing)):**
 
 ```text
@@ -98,14 +113,23 @@ OracleDatabaseClient
 Oracle
 ```
 
-Step Definitions should never:
+### Step Definitions
 
-- contain locators;
-- run SQL directly;
-- know anything about Oracle or `oracledb`;
-- construct a Page or Repository manually (`new ExamplePage(page)`, `new ExampleRepository(client)`).
+A Step is a translation from Gherkin (business intent) into framework actions — never a technical implementation of the browser or the database. That boundary is enforced automatically (see [Architecture Guardrails](#architecture-guardrails)), not just documented:
 
-A Step only talks to `this.pages` and `this.repositories`.
+A Step **can** use:
+
+- `this.pages` — drive the UI through Page Objects/Components;
+- `this.repositories` — drive the database through Repositories;
+- `this.testContext` — share free-form state with a later Step in the same scenario.
+
+A Step must **never**:
+
+- access `this.page`, `this.context`, or `this.browser` directly;
+- import a Page, a Component, or anything under `src/database/**`;
+- import `playwright` or `@playwright/test` directly;
+- construct a Page or Repository manually (`new ExamplePage(page)`, `new ExampleRepository(client)`);
+- contain locators or run SQL directly.
 
 ## Project Structure
 
@@ -118,22 +142,23 @@ support/
   hooks.ts             Before/After/BeforeAll/AfterAll
   databaseLifecycle.ts Owns the shared DatabaseClient (create/share/close)
 src/
+  base/                BaseUiObject (actions/waits/assertions shared by Pages and Components)
   config/              Central, typed configuration (reads .env)
   pages/               Page Objects (BasePage + concrete pages)
-  components/          Reusable UI Components
+  components/          Reusable UI Components (BaseComponent + concrete components)
   pageContainer/        Pages container (composes Page Objects)
   database/
     clients/           DatabaseClient contract + OracleDatabaseClient
     repositories/       BaseRepository + concrete repositories
     builders/           QueryBuilder
     types/               Shared DB types
+  architecture.test.ts  Repo-wide architecture invariants (node --test)
 reports/
   cucumber/            Generated JSON/HTML reports (git-ignored, .gitkeep only)
 .github/workflows/      CI workflow
-docs/refactor-progress/ Historical record of the archetype's own refactor (see below)
 ```
 
-Each of these folders owns one responsibility: Pages/Components own UI, `database/` owns data access, `support/` owns cross-cutting test infrastructure, `config/` owns configuration. Business logic never lives in `support/` or `database/`.
+Each of these folders owns one responsibility: `base/` owns shared UI infrastructure, Pages/Components own UI, `database/` owns data access, `support/` owns cross-cutting test infrastructure, `config/` owns configuration. Business logic never lives in `support/` or `database/`. Unit tests (`*.test.ts`, e.g. `src/database/builders/QueryBuilder.test.ts`, `src/config/index.test.ts`) live alongside the code they test; `src/architecture.test.ts` is the one exception, since it checks invariants that span the whole repo rather than a single module.
 
 ## Getting Started
 
@@ -190,6 +215,8 @@ cp .env.example .env
 | `ORACLE_CLIENT_LIB_DIR` | *(none)* | No | Path to Oracle Instant Client — only needed for Thick mode (see [Database Testing](#database-testing)). |
 
 With `DB_ENABLED=false` (the default), none of the `DB_*`/`ORACLE_CLIENT_LIB_DIR` variables are needed, and `oracledb` is never even loaded into the process.
+
+`src/config/index.ts` is the single owner of `process.env` in this codebase — enforced automatically (see [Architecture Guardrails](#architecture-guardrails)). Every other module consumes the typed `config` object (or `requireBaseUrl()`) instead of reading environment variables itself. Validation is fail-fast: an invalid value (an unrecognized `HEADLESS`/`BROWSER`, a non-numeric or non-positive `DEFAULT_TIMEOUT_MS`, or `DB_ENABLED=true` missing a required credential) throws immediately when the module is first imported, before any scenario runs — covered by `src/config/index.test.ts`.
 
 ## Running Tests
 
@@ -251,7 +278,7 @@ Pages.example       (ExamplePage)
    ↓
 ExamplePage          (extends BasePage; composes navigation)
    ↓
-ExampleNavigationComponent  (extends BasePage; scoped to <nav>)
+ExampleNavigationComponent  (extends BaseComponent; scoped to its root, the <nav>)
 ```
 
 A step, in full:
@@ -269,17 +296,22 @@ Given('I open the example application', async function (this: CustomWorld) {
 1. Add a `.feature` file under `features/` with tags (`@ui` plus `@smoke`/`@regression` as appropriate).
 2. Add step definitions under `features/steps/`, calling `this.pages.<yourPage>...` — no locators, no `new SomePage(page)` inside the step.
 3. Create a Page Object under `src/pages/<yourArea>/` extending `BasePage`.
-4. If part of the page is a reusable, identifiable region (nav bar, modal, sidebar), extract it into a Component under `src/components/<yourArea>/`, also extending `BasePage`, and compose it as a property of the Page.
+4. If part of the page is a reusable, identifiable region (nav bar, modal, sidebar), extract it into a Component under `src/components/<yourArea>/`, extending `BaseComponent` (receiving `page` and its `root` Locator via `super(page, root)`), and compose it as a property of the Page.
 5. Register the new Page in `src/pageContainer/Pages.ts`.
 6. Run it: `npm test` (or `npm run test:ui`).
 
 ### Page Objects
 
-`BasePage` (`src/pages/base/BasePage.ts`) provides thin wrappers over Playwright (`click`, `fill`, `waitForVisible`, `expectContainsText`, etc.). A concrete Page extends it, declares its locators in the constructor, and exposes intention-named methods:
+`BasePage` (`src/pages/base/BasePage.ts`) adds whole-page navigation (`goto`, `reload`, `waitForUrlContains`) on top of the actions/waits/assertions it inherits from `BaseUiObject` (`src/base/BaseUiObject.ts` — see [Architecture](#architecture)). A concrete Page extends `BasePage`, declares its locators, and exposes intention-named methods.
+
+**Locators follow one convention** (see `docs/refactor-progress-ia/T07-canonical-locators.md` for the design history), based on whether the locator depends on a runtime value:
+
+- **Static** (no parameter) — a `private readonly` property, built once in the constructor.
+- **Parameterized** (depends on a runtime value) — a private factory method that returns a `Locator`, never built inline inside an action/assertion method.
 
 ```ts
 export class ExamplePage extends BasePage {
-  private readonly heading: Locator;
+  private readonly heading: Locator; // static
 
   constructor(page: Page) {
     super(page);
@@ -289,14 +321,35 @@ export class ExamplePage extends BasePage {
   async expectHeadingToContain(text: string) {
     await this.expectContainsText(this.heading, text);
   }
+
+  async expectLinkVisible(linkName: string) {
+    await this.waitForVisible(this.linkByName(linkName)); // consumes the factory
+  }
+
+  private linkByName(linkName: string): Locator {
+    // parameterized: a factory, never inlined into expectLinkVisible above
+    return this.page.getByRole('link', { name: linkName, exact: true });
+  }
 }
 ```
 
-Prefer semantic locators (`getByRole`, `getByLabel`, `getByText`, `getByTestId`) over CSS/XPath, and avoid `waitForTimeout` — use Playwright's built-in waiting via `expect(...)`.
+Prefer semantic locators (`getByRole`, `getByLabel`, `getByText`, `getByTestId`) over CSS/XPath, and avoid `waitForTimeout` (blocked automatically — see [Architecture Guardrails](#architecture-guardrails)); use Playwright's built-in waiting via `expect(...)`.
 
 ### Components
 
-Use a Component for a reusable, identifiable region of a page: navigation bars, headers, sidebars, modals, widgets that appear across multiple pages or repeat within one. A Page **composes** its Components as properties — it does not inherit from them:
+Use a Component for a reusable, identifiable region of a page: navigation bars, headers, sidebars, modals, widgets that appear across multiple pages or repeat within one. `BaseComponent` (`src/components/base/BaseComponent.ts`) scopes a Component to its own `root: Locator`, received in the constructor alongside `page`:
+
+```ts
+export class ExampleNavigationComponent extends BaseComponent {
+  constructor(page: Page) {
+    super(page, page.getByRole('navigation', { name: 'Main' }));
+  }
+}
+```
+
+Every locator inside the Component is built from `this.root` — never `this.page` directly — following the same static/parameterized convention as Pages. A Component never gets `goto`/`reload`/`waitForUrlContains`; those stay exclusive to `BasePage` (the type system rejects them, not just a convention).
+
+A Page **composes** its Components as properties — it does not inherit from them:
 
 ```text
 ExamplePage
@@ -357,6 +410,7 @@ Never call `this.repositories.client.execute(...)` — that field is private on 
 - Table/column/`ORDER BY` identifiers must come from an allowlist supplied by the calling repository, never from Scenario/Step data.
 - `buildUpdate` refuses to run without at least one filter (no accidental unconditional `UPDATE`).
 - Pagination (`buildOraclePagination`) is explicitly Oracle-specific (`ROWNUM`), not a generic multi-engine helper.
+- Covered by a permanent unit test suite (`src/database/builders/QueryBuilder.test.ts`), run via `npm run test:unit` — part of `npm run quality`.
 
 ## Reporting
 
@@ -376,9 +430,29 @@ Both come from Cucumber's own built-in formatters (configured in `cucumber.js`) 
 | `npm run lint:fix` | ESLint with `--fix` |
 | `npm run format` | Prettier, writing changes |
 | `npm run format:check` | Prettier, check only (no writes) |
-| `npm run quality` | `typecheck` + `lint` + `format:check`, in that order |
+| `npm run quality` | `typecheck` + `lint` + `format:check` + `test:unit`, in that order |
 
-`npm run quality` is a purely static gate — it never runs the test suite. Run `npm run quality` and `npm test` as two separate checks (see [Continuous Integration](#continuous-integration)).
+`npm run quality` runs the framework's own unit and architecture tests (`test:unit` — `src/**/*.test.ts`, `support/**/*.test.ts`, and `features/**/*.test.ts`, via `node --test`, no browser, no network) alongside the static checks. Those three globs are exactly the TypeScript source roots `tsconfig.json` recognizes — a `*.test.ts` placed outside them would never run, so an architecture test (see [Architecture Guardrails](#architecture-guardrails)) fails the build if one ever is. `test:unit` currently runs three suites: `QueryBuilder` (`src/database/builders/QueryBuilder.test.ts`), configuration (`src/config/index.test.ts`), and architecture invariants (`src/architecture.test.ts`). `npm run quality` still does **not** run the E2E Cucumber suite: it and `npm test` remain two separate checks (see [Continuous Integration](#continuous-integration)).
+
+## Architecture Guardrails
+
+`npm run quality` doesn't just check style — ESLint (`eslint.config.js`) and the architecture tests (`src/architecture.test.ts`, part of `test:unit`) automatically enforce the conventions used throughout this README, so a violation fails the gate instead of relying on a reviewer to catch it:
+
+| Rule | Enforced by |
+|---|---|
+| No Playwright Test runner APIs (`test`, `describe`, `it`, `beforeAll`/`beforeEach`/`afterAll`/`afterEach`) from `@playwright/test` — `expect` and types remain allowed | ESLint |
+| No `waitForTimeout(...)` anywhere, including Step Definitions | ESLint |
+| `process.env` only inside `src/config/**` and `*.test.ts` | ESLint |
+| `oracledb` only imported/required from `src/database/clients/OracleDatabaseClient.ts` | ESLint + architecture test (the architecture test also catches the `createRequire`/`require` form ESLint can't see) |
+| Step Definitions never import Playwright, a Page, a Component, or the database layer, and never touch `this.page`/`this.context`/`this.browser` | ESLint |
+| No `*.spec.ts` file anywhere in the repo | ESLint + architecture test |
+| No `playwright.config.*` file anywhere in the repo | ESLint + architecture test |
+| No npm script invokes `playwright test` | Architecture test |
+| `setWorldConstructor` is registered exactly once, from `support/world.ts` | Architecture test |
+| `CustomWorld` declares only infrastructure state (`browser`, `context`, `page`, `pages`, `repositories`, `testContext`) — no business fields | Architecture test |
+| Every `.feature` file carries at least one Cucumber tag | Architecture test |
+
+See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, and `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule.
 
 ## Continuous Integration
 
@@ -402,7 +476,7 @@ Upload Cucumber reports (cucumber-reports artifact)
 
 CI runs with `DB_ENABLED=false` and the default `not @db` test suite — no Oracle credentials, no Oracle Instant Client, nothing to configure. `BASE_URL`/`HEADLESS`/`BROWSER`/`DB_ENABLED` are plain workflow `env` values (all public, non-sensitive) — not GitHub secrets.
 
-Only Chromium is installed in CI, for a fast signal; Firefox/WebKit were validated manually (see `docs/refactor-progress/T13-ui-example.md`) but are not part of the automated pipeline yet.
+Only Chromium is installed in CI, for a fast signal; Firefox/WebKit were validated manually but are not part of the automated pipeline yet.
 
 The `cucumber-reports` artifact upload uses `if: always()` (so reports are preserved even on failure) and `if-no-files-found: ignore` (so a missing report — e.g. because `quality` failed before tests ran — doesn't add a second, unrelated failure).
 
@@ -421,8 +495,9 @@ This repository does not impose a specific branching model (no required `main`/`
 
 ## Best Practices
 
-- Keep Step Definitions thin: they call `this.pages`/`this.repositories`, nothing else.
-- Locators live in Pages/Components, never in Steps.
+- Keep Step Definitions thin: they call `this.pages`/`this.repositories`/`this.testContext`, nothing else.
+- Locators live in Pages/Components, never in Steps: a static locator is a `private readonly` field built in the constructor; a parameterized one is a private factory method — never build a locator inline inside an action/assertion.
+- Components extend `BaseComponent`, scoped to a `root` Locator — they never get `goto`/`reload`/`waitForUrlContains`; only a Page extends `BasePage` for that.
 - No `waitForTimeout` — use Playwright's built-in waiting.
 - Prefer semantic locators (`getByRole`, `getByLabel`, `getByText`, `getByTestId`).
 - No SQL in Steps; only Repositories build queries.
@@ -452,8 +527,12 @@ This is an honest list — none of the following is implemented today:
 - `ExampleRepository` does not point at a real, existing table — `EXAMPLE_ITEMS` is a demonstration contract only.
 - No `@db` Feature exists yet, so `npm run test:db` currently runs 0 scenarios.
 - There is no API-testing layer.
-- CI installs and runs against Chromium only (Firefox/WebKit are validated manually, not in CI).
+- CI installs and runs against Chromium only (Firefox/WebKit are validated manually, not in CI); Cucumber runs sequentially, with no parallelism or automatic retries configured.
 - The UI example depends on an external public site, `https://playwright.dev`, being reachable and keeping its current heading/navigation.
+- No authentication/session-reuse layer: `CustomWorld.init()` always creates a brand-new, empty `BrowserContext` — no `storageState`, no programmatic login, no session sharing between scenarios.
+- No Test Data Management layer — repositories build ad hoc queries; there is no seeding/factory framework.
+- No structured logging framework.
+- No multi-environment configuration matrix (e.g. named `staging`/`production` profiles) — `src/config/index.ts` reads plain environment variables once, at import time.
 
 ## Extending the Archetype
 
@@ -486,5 +565,3 @@ Try `npm run lint:fix` for auto-fixable issues first, then address whatever rema
 ## Internal Documentation
 
 Module-level `AGENTS-*.md` files (`src/database/AGENTS-database.md`, `support/AGENTS-support.md`, and the root `AGENTS.md`) document implementation details for contributors and AI coding assistants working in this repository.
-
-`docs/refactor-progress/` is a historical, internal record of how this archetype was transformed from a corporate test suite into a generic template — it is not required reading to use the archetype, and is kept for reference rather than linked from here task by task.

@@ -24,9 +24,10 @@ No business logic lives here. Reporting (JSON/HTML) is **not** generated from th
 
 - **Class:** `CustomWorld extends World` (`@cucumber/cucumber`).
 - **Properties:** `browser`, `context`, `page` (Playwright), `pages: Pages`, `repositories?: RepositoryContainer` (optional — only assigned when a `DatabaseClient` exists, see hooks below), `testContext: TestContext` (`Record<string, unknown>`, a fresh object per scenario, used only when a Step genuinely needs to share a value with a later Step).
-- **`init(options?: { storageStatePath?: string; headless?: boolean })`:** launches the configured browser (`config.browser`; defaults from `HEADLESS`), creates a `BrowserContext` (with `storageState` if `storageStatePath` is passed) and a `Page`, and builds `this.pages = new Pages(this.page)`.
+- **`init()`:** takes no arguments and no options. Launches the configured browser (`config.browser`, `config.headless`), creates a fresh `BrowserContext` (no `storageState`) and a `Page`, and builds `this.pages = new Pages(this.page)`.
 - **`close()`:** closes `page`/`context`/`browser` if they exist.
 - **Does not know:** Oracle, `oracledb`, database credentials, or any specific Page/Repository — it only knows the `Pages`/`RepositoryContainer` container types.
+- **No authentication layer exists.** There is no `storageState`, no programmatic login, and no session reuse — `init()` always creates a brand-new, empty `BrowserContext`. Any project that needs authentication must design that capability explicitly (e.g. as its own module with a clear lifecycle) before use — never improvise it inline inside a Step or a hook.
 
 ---
 
@@ -50,13 +51,11 @@ Sole owner of the shared `DatabaseClient`:
 - `getDatabaseClient()` — returns the same shared instance to every caller (every scenario's `Before`).
 - `closeDatabaseClient()` — closes the client and clears the module-level reference; safe to call even if no client was ever created.
 
-Full lifecycle detail: `docs/refactor-progress/T11-oracle-pool-lifecycle.md`.
-
 ---
 
 ## 6. Reporting
 
-`cucumber.js` configures Cucumber's built-in formatters (`progress`, `json:reports/cucumber/cucumber-report.json`, `html:reports/cucumber/cucumber-report.html`). There is no custom reporter under `support/` or anywhere else in the codebase, and no Jenkins-specific output. See `docs/refactor-progress/T15-generic-reporting.md`.
+`cucumber.js` configures Cucumber's built-in formatters (`progress`, `json:reports/cucumber/cucumber-report.json`, `html:reports/cucumber/cucumber-report.html`). There is no custom reporter under `support/` or anywhere else in the codebase, and no Jenkins-specific output.
 
 ---
 
