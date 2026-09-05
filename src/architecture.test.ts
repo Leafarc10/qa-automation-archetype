@@ -450,3 +450,76 @@ describe('architecture — Components extend BaseComponent', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// A11 — Component root scoping (T10.1b, closing the remaining aspect of
+// finding F-01 from docs/ai-foundation-final-audit.md): a concrete Component
+// must build every locator from its own `root: Locator` (inherited from
+// BaseComponent), never from `this.page` directly. None of BaseUiObject's 17
+// shared methods reference `this.page` themselves — they all operate on a
+// Locator parameter — so there is no legitimate use of `this.page` inside a
+// concrete Component today. The one place `page` legitimately appears in a
+// Component is the constructor's local parameter (used to build `root` before
+// calling `super(page, root)`), which is a plain Identifier, never a
+// `this.page` PropertyAccessExpression — so blocking every `this.page`
+// reference, with no exceptions, cannot flag it.
+// ---------------------------------------------------------------------------
+
+/** Every `this.page` PropertyAccessExpression reached from a class's own members (constructor included), as 1-based source lines. A chained access like `this.page.getByRole(...)` still contains a `this.page` node as its inner expression, so this single check also catches chained/inline usage without needing a list of forbidden method names. */
+function getThisPageAccessLines(
+  sourceFile: ts.SourceFile,
+  classNode: ts.ClassDeclaration
+): number[] {
+  const lines: number[] = [];
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ThisKeyword &&
+      node.name.text === 'page'
+    ) {
+      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      lines.push(line + 1);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  for (const member of classNode.members) visit(member);
+  return lines;
+}
+
+describe('architecture — Components scope UI access through root, not this.page', () => {
+  it('never accesses this.page directly (locators must be built from this.root)', () => {
+    const files = walkRepoFiles().filter(
+      (relativePath) =>
+        relativePath.startsWith('src/components/') &&
+        relativePath.endsWith('.ts') &&
+        !relativePath.endsWith('.test.ts') &&
+        relativePath !== COMPONENTS_BASE_FILE
+    );
+
+    const offenders: string[] = [];
+
+    for (const relativePath of files) {
+      const sourceFile = readSourceFile(relativePath);
+
+      function visitClasses(node: ts.Node): void {
+        if (ts.isClassDeclaration(node) && node.name) {
+          const className = node.name.text;
+          for (const line of getThisPageAccessLines(sourceFile, node)) {
+            offenders.push(`${relativePath}:${line} (class ${className})`);
+          }
+        }
+        ts.forEachChild(node, visitClasses);
+      }
+
+      visitClasses(sourceFile);
+    }
+
+    assert.deepEqual(
+      offenders,
+      [],
+      `Components must scope UI access through this.root, never this.page. Offenders: ${offenders.join('; ') || '(none)'}`
+    );
+  });
+});
