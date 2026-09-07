@@ -1,4 +1,4 @@
-import { Given, Then } from '@cucumber/cucumber';
+import { Given, Then, When } from '@cucumber/cucumber';
 import type { CustomWorld } from '../../support/world.js';
 
 Given('I open the example application', async function (this: CustomWorld) {
@@ -26,3 +26,14 @@ Then(
     await this.pages.example.navigation.expectLinkVisible(linkName);
   }
 );
+
+When(
+  'I click the {string} link in the main navigation',
+  async function (this: CustomWorld, linkName: string) {
+    await this.pages.example.navigation.clickLink(linkName);
+  }
+);
+
+Then('the current URL should contain {string}', async function (this: CustomWorld, text: string) {
+  await this.pages.example.waitForUrlContains(text);
+});

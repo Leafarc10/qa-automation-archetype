@@ -14,3 +14,12 @@ Feature: Example application
     Given I open the example application
     Then the main navigation should be visible
     And the main navigation should include a "Docs" link
+
+  @smoke
+  Scenario: Clicking the Docs link in the main navigation opens the documentation page
+    Given I open the example application
+    Then I should see a heading that mentions "Playwright"
+    And the main navigation should be visible
+    And the main navigation should include a "Docs" link
+    When I click the "Docs" link in the main navigation
+    Then the current URL should contain "docs"

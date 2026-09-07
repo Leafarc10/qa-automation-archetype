@@ -18,6 +18,10 @@ export class ExampleNavigationComponent extends BaseComponent {
     await this.waitForVisible(this.linkByName(linkName));
   }
 
+  async clickLink(linkName: string): Promise<void> {
+    await this.click(this.linkByName(linkName));
+  }
+
   private linkByName(linkName: string): Locator {
     return this.root.getByRole('link', { name: linkName, exact: true });
   }
