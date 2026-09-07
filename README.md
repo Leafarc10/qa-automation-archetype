@@ -569,7 +569,7 @@ Run `npx playwright install` (or `npx playwright install chromium` if you only n
 Set `DB_USER`, `DB_PASSWORD`, and `DB_CONNECT_STRING` — all three are required once `DB_ENABLED=true`.
 
 **`npm run format:check` fails**
-Run `npm run format` to apply Prettier's formatting, then re-check.
+Run `npm run format` to apply Prettier's formatting, then re-check. On Windows, this is most often line endings, not real style drift: `.gitattributes` normalizes the repository to LF and Prettier's `endOfLine: "auto"` (`.prettierrc.json`) accepts whatever line ending is already on disk, so `npm run quality` passes regardless of a contributor's local `core.autocrlf` setting.
 
 **`npm run lint` fails**
 Try `npm run lint:fix` for auto-fixable issues first, then address whatever remains manually.
