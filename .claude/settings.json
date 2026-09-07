@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "ask": [
+      "Edit(/src/base/**)",
+      "Edit(/src/pages/base/BasePage.ts)",
+      "Edit(/src/components/base/BaseComponent.ts)",
+      "Edit(/support/world.ts)",
+      "Edit(/support/hooks.ts)",
+      "Edit(/support/databaseLifecycle.ts)",
+      "Edit(/src/database/clients/**)",
+      "Edit(/src/database/builders/**)",
+      "Edit(/src/database/repositories/BaseRepository.ts)",
+      "Edit(/src/database/RepositoryContainer.ts)",
+      "Edit(/eslint.config.js)",
+      "Edit(/src/architecture.test.ts)",
+      "Edit(/tsconfig.json)",
+      "Edit(/cucumber.js)",
+      "Edit(/package.json)",
+      "Edit(/package-lock.json)",
+      "Edit(/.github/workflows/**)"
+    ],
+    "deny": ["Read(/.env)"]
+  }
+}
