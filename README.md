@@ -436,23 +436,35 @@ Both come from Cucumber's own built-in formatters (configured in `cucumber.js`) 
 
 ## Architecture Guardrails
 
-`npm run quality` doesn't just check style — ESLint (`eslint.config.js`) and the architecture tests (`src/architecture.test.ts`, part of `test:unit`) automatically enforce the conventions used throughout this README, so a violation fails the gate instead of relying on a reviewer to catch it:
+`npm run quality` doesn't just check style — ESLint (`eslint.config.js`) and the architecture tests (`src/architecture.test.ts`, part of `test:unit`) automatically enforce most of the conventions used throughout this README, so a violation fails the gate instead of relying on a reviewer to catch it.
 
-| Rule | Enforced by |
-|---|---|
-| No Playwright Test runner APIs (`test`, `describe`, `it`, `beforeAll`/`beforeEach`/`afterAll`/`afterEach`) from `@playwright/test` — `expect` and types remain allowed | ESLint |
-| No `waitForTimeout(...)` anywhere, including Step Definitions | ESLint |
-| `process.env` only inside `src/config/**` and `*.test.ts` | ESLint |
-| `oracledb` only imported/required from `src/database/clients/OracleDatabaseClient.ts` | ESLint + architecture test (the architecture test also catches the `createRequire`/`require` form ESLint can't see) |
-| Step Definitions never import Playwright, a Page, a Component, or the database layer, and never touch `this.page`/`this.context`/`this.browser` | ESLint |
-| No `*.spec.ts` file anywhere in the repo | ESLint + architecture test |
-| No `playwright.config.*` file anywhere in the repo | ESLint + architecture test |
-| No npm script invokes `playwright test` | Architecture test |
-| `setWorldConstructor` is registered exactly once, from `support/world.ts` | Architecture test |
-| `CustomWorld` declares only infrastructure state (`browser`, `context`, `page`, `pages`, `repositories`, `testContext`) — no business fields | Architecture test |
-| Every `.feature` file carries at least one Cucumber tag | Architecture test |
+The table below states each rule's **measured** scope (see `docs/ai-foundation-readiness-final.md`): the "Scope" column names the exact reach of the check, so a rule that holds only for `.ts` files, or only for one import form, says so rather than reading as absolute.
 
-See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, and `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule.
+| Rule | Enforced by | Scope |
+|---|---|---|
+| No Playwright Test runner APIs (`test`, `describe`, `it`, `beforeAll`/`beforeEach`/`afterAll`/`afterEach`) from `@playwright/test` — `expect` and types remain allowed | ESLint (G1) | Static `import` in `.ts`; a dynamic `await import('@playwright/test')` is not caught |
+| No `waitForTimeout(...)` | ESLint (G2) | `.ts` files only (`.js` files carry no guardrails) |
+| `process.env` only inside `src/config/**` and `*.test.ts` | ESLint (G3) | `.ts` files; covers `process.env.X`, `process.env['X']`, `const env = process.env` and destructuring |
+| `oracledb` only referenced from `src/database/clients/OracleDatabaseClient.ts` | ESLint (G4) + architecture test (A6) | A6 also catches `await import('oracledb')` and a **named** `createRequire` import with one assignment hop; a default/namespace `node:module` import still escapes |
+| Step Definitions never import Playwright, a Page, a Component, or the database layer, and never touch `this.page`/`this.context`/`this.browser` | ESLint (G5) | Covers `playwright`, `@playwright/test`, `oracledb` and relative `src/pages`/`src/components`/`src/database` paths; `playwright-core` is **not** in the list |
+| No SQL in Step Definitions | Structural (G5 + `protected` members of `BaseRepository`) | No dedicated rule: Steps cannot import the database layer, and `execute`/`select`/`insert`/`update`/`delete` are `protected` |
+| No `*.spec.ts` file anywhere in the repo | ESLint (G7) + architecture test (A2) | `.ts` only — a `.spec.js` is not caught |
+| No `playwright.config.*` file anywhere in the repo | ESLint (G8) + architecture test (A1) | Any extension (A1 is a filesystem check) |
+| No npm script invokes `playwright test` | Architecture test (A3) | `package.json` scripts |
+| `setWorldConstructor` is registered exactly once, from `support/world.ts` | Architecture test (A4) | Direct calls by that name; an aliased import escapes |
+| `CustomWorld` declares only infrastructure state (`browser`, `context`, `page`, `pages`, `repositories`, `testContext`) — no business fields | Architecture test (A5) | Property declarations; getters and parameter properties escape |
+| Every `.feature` file carries at least one Cucumber tag | Architecture test (A7) | All `.feature` files |
+| Every concrete Page under `src/pages/**` extends `BasePage` | Architecture test (A9) | Every class declared in those files |
+| Every concrete Component under `src/components/**` extends `BaseComponent` (never `BasePage`) | Architecture test (A10) | Every class declared in those files |
+| Components scope UI access through `this.root`, never `this.page` | Architecture test (A11) | `this.page` accesses inside those classes; a locator built from the constructor's local `page` parameter escapes |
+| Every `*.test.ts` lives under a `test:unit` discovery root (`src/**`, `support/**`, `features/**`) so it actually runs | Architecture test (A12) | Whole repo (filesystem) |
+
+Two things this table deliberately does **not** claim:
+
+- **`npm run quality` green is necessary, not sufficient.** The residual gaps named in the "Scope" column above — plus `.ts` files outside `tsconfig.json`'s `include`, which are never typechecked — mean architectural review by a human still matters. `docs/ai-foundation-readiness-final.md` §7 tracks each one.
+- **Not every convention in this README is machine-enforced.** The locator conventions (static → `private readonly` field; parameterized → private factory), "keep Steps thin", and "reuse before creating" are review-enforced: they are how this codebase is written, but no rule fails the build if you deviate.
+
+See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule, and `CLAUDE.md` for the operating contract an AI agent follows in this repo.
 
 ## Continuous Integration
 
@@ -565,3 +577,5 @@ Try `npm run lint:fix` for auto-fixable issues first, then address whatever rema
 ## Internal Documentation
 
 Module-level `AGENTS-*.md` files (`src/database/AGENTS-database.md`, `support/AGENTS-support.md`, and the root `AGENTS.md`) document implementation details for contributors and AI coding assistants working in this repository.
+
+`CLAUDE.md` (repo root) is the operating contract for Claude Code and any derived agent: the canonical UI flow, the layer boundaries, which invariants are machine-enforced vs. review-enforced, which infrastructure requires explicit authorization to modify, and the definition of done.
