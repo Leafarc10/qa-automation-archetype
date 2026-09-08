@@ -9,6 +9,7 @@ const CONFIG_MODULE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)
 
 const CONFIG_ENV_KEYS = [
   'BASE_URL',
+  'SAUCEDEMO_BASE_URL',
   'HEADLESS',
   'BROWSER',
   'DEFAULT_TIMEOUT_MS',
@@ -74,6 +75,7 @@ describe('config — defaults', () => {
     assert.equal(mod.config.defaultTimeoutMs, 120_000);
     assert.equal(mod.config.db.enabled, false);
     assert.equal(mod.config.baseUrl, undefined);
+    assert.equal(mod.config.sauceDemoBaseUrl, 'https://www.saucedemo.com');
   });
 });
 
@@ -209,5 +211,28 @@ describe('config — BASE_URL / requireBaseUrl()', () => {
     const mod = await loadConfig({ BASE_URL: '   ' });
     assert.equal(mod.config.baseUrl, undefined);
     assert.throws(() => mod.requireBaseUrl(), /BASE_URL is required/);
+  });
+});
+
+describe('config — SAUCEDEMO_BASE_URL / requireSauceDemoBaseUrl()', () => {
+  it('applies the public default when no relevant env var is set', async () => {
+    const mod = await loadConfig({});
+    assert.equal(mod.config.sauceDemoBaseUrl, 'https://www.saucedemo.com');
+  });
+
+  it('takes the configured value as-is when set', async () => {
+    const mod = await loadConfig({ SAUCEDEMO_BASE_URL: 'https://staging.saucedemo.example' });
+    assert.equal(mod.config.sauceDemoBaseUrl, 'https://staging.saucedemo.example');
+  });
+
+  it('requireSauceDemoBaseUrl() returns the configured value', async () => {
+    const mod = await loadConfig({ SAUCEDEMO_BASE_URL: 'https://staging.saucedemo.example' });
+    assert.equal(mod.requireSauceDemoBaseUrl(), 'https://staging.saucedemo.example');
+  });
+
+  it('treats a blank SAUCEDEMO_BASE_URL as absent and falls back to the default', async () => {
+    const mod = await loadConfig({ SAUCEDEMO_BASE_URL: '   ' });
+    assert.equal(mod.config.sauceDemoBaseUrl, 'https://www.saucedemo.com');
+    assert.equal(mod.requireSauceDemoBaseUrl(), 'https://www.saucedemo.com');
   });
 });

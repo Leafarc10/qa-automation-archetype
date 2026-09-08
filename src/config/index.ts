@@ -16,6 +16,7 @@ type DatabaseConfig = {
 
 export type AppConfig = {
   baseUrl?: string;
+  sauceDemoBaseUrl: string;
   headless: boolean;
   browser: BrowserName;
   defaultTimeoutMs: number;
@@ -85,6 +86,7 @@ validateDatabaseConfig(database);
 
 export const config: AppConfig = {
   baseUrl: optionalEnv('BASE_URL'),
+  sauceDemoBaseUrl: optionalEnv('SAUCEDEMO_BASE_URL') ?? 'https://www.saucedemo.com',
   headless: parseBoolean('HEADLESS', true),
   browser: parseBrowser(),
   defaultTimeoutMs: parsePositiveInteger('DEFAULT_TIMEOUT_MS', 120_000),
@@ -97,4 +99,8 @@ export function requireBaseUrl(): string {
   }
 
   return config.baseUrl;
+}
+
+export function requireSauceDemoBaseUrl(): string {
+  return config.sauceDemoBaseUrl;
 }

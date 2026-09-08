@@ -205,6 +205,7 @@ cp .env.example .env
 | Variable | Default | Required | Description |
 |---|---|---|---|
 | `BASE_URL` | *(none)* | Only for UI scenarios | Base URL the UI example navigates to. `.env.example` ships `https://playwright.dev`. |
+| `SAUCEDEMO_BASE_URL` | `https://www.saucedemo.com` | No | Base URL the SauceDemo checkout scenarios (`features/sauceDemo/checkout.feature`) navigate to. Defaults to the public demo site, so no configuration is needed in CI. |
 | `HEADLESS` | `true` | No | `true`/`false` — whether Playwright launches the browser headless. |
 | `BROWSER` | `chromium` | No | `chromium`, `firefox`, or `webkit`. |
 | `DEFAULT_TIMEOUT_MS` | `120000` | No | Default Cucumber step/scenario timeout, in milliseconds. |
