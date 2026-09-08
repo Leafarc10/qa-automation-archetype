@@ -17,7 +17,9 @@
       "Edit(/cucumber.js)",
       "Edit(/package.json)",
       "Edit(/package-lock.json)",
-      "Edit(/.github/workflows/**)"
+      "Edit(/.github/workflows/**)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/.claude/**)"
     ],
     "deny": ["Read(/.env)"]
   }
