@@ -19,7 +19,8 @@
       "Edit(/package-lock.json)",
       "Edit(/.github/workflows/**)",
       "Edit(/CLAUDE.md)",
-      "Edit(/.claude/**)"
+      "Edit(/.claude/**)",
+      "Edit(/.mcp.json)"
     ],
     "deny": ["Read(/.env)"]
   }
