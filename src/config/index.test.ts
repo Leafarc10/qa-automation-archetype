@@ -8,7 +8,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const CONFIG_MODULE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.ts');
 
 const CONFIG_ENV_KEYS = [
-  'BASE_URL',
   'SAUCEDEMO_BASE_URL',
   'HEADLESS',
   'BROWSER',
@@ -74,7 +73,6 @@ describe('config — defaults', () => {
     assert.equal(mod.config.browser, 'chromium');
     assert.equal(mod.config.defaultTimeoutMs, 120_000);
     assert.equal(mod.config.db.enabled, false);
-    assert.equal(mod.config.baseUrl, undefined);
     assert.equal(mod.config.sauceDemoBaseUrl, 'https://www.saucedemo.com');
   });
 });
@@ -189,28 +187,6 @@ describe('config — DB_ENABLED', () => {
     assert.equal(mod.config.db.user, 'app_user');
     assert.equal(mod.config.db.password, 'app_password');
     assert.equal(mod.config.db.connectString, 'app_connect_string');
-  });
-});
-
-describe('config — BASE_URL / requireBaseUrl()', () => {
-  it('requireBaseUrl() throws a clear error when BASE_URL is absent', async () => {
-    const mod = await loadConfig({});
-    assert.throws(
-      () => mod.requireBaseUrl(),
-      /BASE_URL is required before navigating to an application\./
-    );
-  });
-
-  it('requireBaseUrl() returns exactly the configured BASE_URL', async () => {
-    const mod = await loadConfig({ BASE_URL: 'https://example.test' });
-    assert.equal(mod.config.baseUrl, 'https://example.test');
-    assert.equal(mod.requireBaseUrl(), 'https://example.test');
-  });
-
-  it('treats a blank BASE_URL as absent', async () => {
-    const mod = await loadConfig({ BASE_URL: '   ' });
-    assert.equal(mod.config.baseUrl, undefined);
-    assert.throws(() => mod.requireBaseUrl(), /BASE_URL is required/);
   });
 });
 

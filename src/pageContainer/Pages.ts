@@ -1,5 +1,4 @@
 import type { Page } from '@playwright/test';
-import { ExamplePage } from '../pages/example/ExamplePage.js';
 import { SauceDemoLoginPage } from '../pages/sauceDemo/SauceDemoLoginPage.js';
 import { SauceDemoInventoryPage } from '../pages/sauceDemo/SauceDemoInventoryPage.js';
 import { SauceDemoCartPage } from '../pages/sauceDemo/SauceDemoCartPage.js';
@@ -8,7 +7,6 @@ import { SauceDemoCheckoutOverviewPage } from '../pages/sauceDemo/SauceDemoCheck
 import { SauceDemoCheckoutCompletePage } from '../pages/sauceDemo/SauceDemoCheckoutCompletePage.js';
 
 export class Pages {
-  readonly example: ExamplePage;
   readonly sauceDemoLogin: SauceDemoLoginPage;
   readonly sauceDemoInventory: SauceDemoInventoryPage;
   readonly sauceDemoCart: SauceDemoCartPage;
@@ -17,7 +15,6 @@ export class Pages {
   readonly sauceDemoCheckoutComplete: SauceDemoCheckoutCompletePage;
 
   constructor(page: Page) {
-    this.example = new ExamplePage(page);
     this.sauceDemoLogin = new SauceDemoLoginPage(page);
     this.sauceDemoInventory = new SauceDemoInventoryPage(page);
     this.sauceDemoCart = new SauceDemoCartPage(page);

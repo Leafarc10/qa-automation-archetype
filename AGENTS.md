@@ -17,7 +17,7 @@ For user-facing setup/usage documentation, see `README.md` — this file is for 
 ## 2. Before modifying code
 
 1. **Identify the correct layer** for the change: UI (Page/Component), Steps, Database (Repository/QueryBuilder), or Config — see the architecture below and the relevant module `AGENTS-*.md` (section 4).
-2. **Reuse before creating**: `BaseUiObject`/`BasePage`/`BaseComponent` for UI, `BaseRepository`/`RepositoryContainer` for data access, `config`/`requireBaseUrl()` for configuration. A new base class or a new way of reading `process.env` is very rarely the right first move.
+2. **Reuse before creating**: `BaseUiObject`/`BasePage`/`BaseComponent` for UI, `BaseRepository`/`RepositoryContainer` for data access, `config`/`requireSauceDemoBaseUrl()` for configuration. A new base class or a new way of reading `process.env` is very rarely the right first move.
 3. **Respect layer boundaries**: Steps only call `this.pages`/`this.repositories`/`this.testContext`; a Component never navigates (`goto`/`reload`/`waitForUrlContains` are exclusive to `BasePage`); a Repository is the only code that talks to `DatabaseClient` directly.
 4. **Run `npm run quality`** (typecheck + lint + format:check + unit/architecture tests) before considering a change done — see [Code Quality](README.md#code-quality)/[Architecture Guardrails](README.md#architecture-guardrails) in `README.md`.
 5. **Never bypass a guardrail** (the `no-restricted-*` ESLint rules in `eslint.config.js`, the invariants in `src/architecture.test.ts`) to make a change compile or pass.
@@ -58,13 +58,13 @@ CustomWorld (support/world.ts)
 - **Support (CustomWorld, hooks, DB lifecycle):**
   [support/AGENTS-support.md](support/AGENTS-support.md)
 
-There is no separate AGENTS file for `features/`, `src/pages/`, `src/components/`, `src/base/`, or `src/pageContainer/` — those are small enough today (one example UI flow) that the code itself, plus `README.md`'s "UI Testing"/"Architecture" sections, is the reference. Add a module-level AGENTS file if/when that module grows enough to need one.
+There is no separate AGENTS file for `features/`, `src/pages/`, `src/components/`, `src/base/`, or `src/pageContainer/` — those are small enough today (one canonical UI flow, SauceDemo checkout, and no concrete Component) that the code itself, plus `README.md`'s "UI Testing"/"Architecture" sections, is the reference. Add a module-level AGENTS file if/when that module grows enough to need one.
 
 ---
 
 ## 5. Typical end-to-end flow (Feature to DB)
 
-1. **Feature** (`features/example/example.feature`): tagged (`@ui`, `@regression`, `@smoke`), no business-specific concepts.
+1. **Feature** (`features/sauceDemo/checkout.feature`): tagged (`@ui`, `@regression`, `@smoke`), the canonical UI example.
 2. **Hooks** (`support/hooks.ts`): `BeforeAll` creates the shared `DatabaseClient` only if `DB_ENABLED=true`; `Before` initializes `CustomWorld` (browser/context/page) and, if a `DatabaseClient` exists, builds `this.repositories`; `After` closes the browser; `AfterAll` closes the `DatabaseClient`.
 3. **Steps** (`features/steps/*.steps.ts`): call `this.pages.<page>.<method>()` and, for DB-backed scenarios (none exist yet), would call `this.repositories.<repository>.<method>()`.
 4. **Pages/Components**: encapsulate locators (static → `private readonly` field; parameterized → private factory method) and UI actions/assertions.

@@ -39,7 +39,7 @@ This project is a template for automated end-to-end testing, built around:
 - **ESLint + Prettier** as static quality gates.
 - A minimal **GitHub Actions** workflow.
 
-It ships with one small, real, working example (UI) and one neutral database repository (used only in isolated validations today, not yet wired to a Cucumber scenario) — enough to show the pattern without pretending to be a full test suite for any particular application.
+It ships with one real, working **canonical UI example** — a full checkout flow against [SauceDemo](https://www.saucedemo.com/), a public demo store — and one neutral database repository (used only in isolated validations today, not yet wired to a Cucumber scenario). Neither is a real, production application: they exist to show the pattern without pretending to be a full test suite for any particular app.
 
 ## Tech Stack
 
@@ -128,14 +128,14 @@ A Step must **never**:
 - access `this.page`, `this.context`, or `this.browser` directly;
 - import a Page, a Component, or anything under `src/database/**`;
 - import `playwright` or `@playwright/test` directly;
-- construct a Page or Repository manually (`new ExamplePage(page)`, `new ExampleRepository(client)`);
+- construct a Page or Repository manually (`new SauceDemoLoginPage(page)`, `new ExampleRepository(client)`);
 - contain locators or run SQL directly.
 
 ## Project Structure
 
 ```text
 features/
-  example/            Gherkin feature(s)
+  sauceDemo/           Gherkin feature(s) — the canonical UI example (SauceDemo checkout)
   steps/               Step definitions
 support/
   world.ts             CustomWorld (browser/context/page, Pages, repositories, testContext)
@@ -204,8 +204,7 @@ cp .env.example .env
 
 | Variable | Default | Required | Description |
 |---|---|---|---|
-| `BASE_URL` | *(none)* | Only for UI scenarios | Base URL the UI example navigates to. `.env.example` ships `https://playwright.dev`. |
-| `SAUCEDEMO_BASE_URL` | `https://www.saucedemo.com` | No | Base URL the SauceDemo checkout scenarios (`features/sauceDemo/checkout.feature`) navigate to. Defaults to the public demo site, so no configuration is needed in CI. |
+| `SAUCEDEMO_BASE_URL` | `https://www.saucedemo.com` | No | Base URL the canonical UI example — the SauceDemo checkout scenarios (`features/sauceDemo/checkout.feature`) — navigates to. Defaults to the public demo site, so no configuration is needed in CI. |
 | `HEADLESS` | `true` | No | `true`/`false` — whether Playwright launches the browser headless. |
 | `BROWSER` | `chromium` | No | `chromium`, `firefox`, or `webkit`. |
 | `DEFAULT_TIMEOUT_MS` | `120000` | No | Default Cucumber step/scenario timeout, in milliseconds. |
@@ -217,7 +216,7 @@ cp .env.example .env
 
 With `DB_ENABLED=false` (the default), none of the `DB_*`/`ORACLE_CLIENT_LIB_DIR` variables are needed, and `oracledb` is never even loaded into the process.
 
-`src/config/index.ts` is the single owner of `process.env` in this codebase — enforced automatically (see [Architecture Guardrails](#architecture-guardrails)). Every other module consumes the typed `config` object (or `requireBaseUrl()`) instead of reading environment variables itself. Validation is fail-fast: an invalid value (an unrecognized `HEADLESS`/`BROWSER`, a non-numeric or non-positive `DEFAULT_TIMEOUT_MS`, or `DB_ENABLED=true` missing a required credential) throws immediately when the module is first imported, before any scenario runs — covered by `src/config/index.test.ts`.
+`src/config/index.ts` is the single owner of `process.env` in this codebase — enforced automatically (see [Architecture Guardrails](#architecture-guardrails)). Every other module consumes the typed `config` object (or `requireSauceDemoBaseUrl()`) instead of reading environment variables itself. Validation is fail-fast: an invalid value (an unrecognized `HEADLESS`/`BROWSER`, a non-numeric or non-positive `DEFAULT_TIMEOUT_MS`, or `DB_ENABLED=true` missing a required credential) throws immediately when the module is first imported, before any scenario runs — covered by `src/config/index.test.ts`.
 
 ## Running Tests
 
@@ -234,7 +233,7 @@ All commands below run through `cucumber-js --config cucumber.js`, with `cucumbe
 Example:
 
 ```bash
-DB_ENABLED=false HEADLESS=true BROWSER=chromium BASE_URL=https://playwright.dev npm test
+DB_ENABLED=false HEADLESS=true BROWSER=chromium npm test
 ```
 
 (On Windows PowerShell, set each variable with `$env:NAME = "value"` first, or use `.env`.)
@@ -248,49 +247,49 @@ DB_ENABLED=false HEADLESS=true BROWSER=chromium BASE_URL=https://playwright.dev 
 | `@regression` | The broader functional set for a feature. |
 | `@db` | Reserved for scenarios that require a real database. No feature uses it yet (see [Database Testing](#database-testing)). |
 
-Current example feature:
+Current canonical feature:
 
 ```gherkin
 @ui @regression
-Feature: Example application
+Feature: SauceDemo checkout
 
   @smoke
-  Scenario: The homepage shows the expected heading and call to action
+  Scenario: Complete checkout for a single product
     ...
 
-  Scenario: The main navigation exposes the documentation link
+  Scenario: Postal code is required to continue checkout
     ...
 ```
 
 ## UI Testing
 
-### The example
+### The canonical example: SauceDemo checkout
 
-`features/example/example.feature` opens `https://playwright.dev` (a free, public, no-login demo site — chosen because it has a real, reusable navigation component to demonstrate the Component pattern) and checks its main heading, a call-to-action link, and its navigation bar.
+`features/sauceDemo/checkout.feature` is this archetype's **canonical UI example / reference implementation** — not a production application. It drives a full checkout against [SauceDemo](https://www.saucedemo.com/), a free, public, no-login demo store, covering: login, navigation, forms, a positive end-to-end scenario, and a negative (validation error) scenario. Read it to see the Page Object pattern, central configuration, and thin Steps applied to a real, multi-screen flow.
 
 Flow:
 
 ```text
-example.feature
+checkout.feature
    ↓
-example.steps.ts   (this.pages.example...)
+checkout.steps.ts   (this.pages.sauceDemo*...)
    ↓
-Pages.example       (ExamplePage)
-   ↓
-ExamplePage          (extends BasePage; composes navigation)
-   ↓
-ExampleNavigationComponent  (extends BaseComponent; scoped to its root, the <nav>)
+Pages.sauceDemo*     (SauceDemoLoginPage, SauceDemoInventoryPage, SauceDemoCartPage,
+   ↓                  SauceDemoCheckoutInfoPage, SauceDemoCheckoutOverviewPage,
+   ↓                  SauceDemoCheckoutCompletePage — one Page per real screen)
+Playwright
 ```
 
 A step, in full:
 
 ```ts
-Given('I open the example application', async function (this: CustomWorld) {
-  await this.pages.example.open();
+Given('I log in as a valid SauceDemo user', async function (this: CustomWorld) {
+  await this.pages.sauceDemoLogin.open();
+  await this.pages.sauceDemoLogin.login('standard_user', 'secret_sauce');
 });
 ```
 
-`ExamplePage.open()` reads the URL from config (`requireBaseUrl()`) — never hardcoded in a Feature, Step, Page, or Component.
+`SauceDemoLoginPage.open()` reads the URL from config (`requireSauceDemoBaseUrl()`) — never hardcoded in a Feature, Step, Page, or Component. There is no Component in this flow today: every SauceDemo screen is driven directly by its Page Object (see [Components](#components) for why none was introduced here).
 
 ### Adding a new UI test
 
@@ -311,25 +310,31 @@ Given('I open the example application', async function (this: CustomWorld) {
 - **Parameterized** (depends on a runtime value) — a private factory method that returns a `Locator`, never built inline inside an action/assertion method.
 
 ```ts
-export class ExamplePage extends BasePage {
-  private readonly heading: Locator; // static
+export class SauceDemoInventoryPage extends BasePage {
+  private readonly cartBadge: Locator; // static
 
   constructor(page: Page) {
     super(page);
-    this.heading = page.getByRole('heading', { level: 1 });
+    this.cartBadge = page.locator('[data-test="shopping-cart-badge"]');
   }
 
-  async expectHeadingToContain(text: string) {
-    await this.expectContainsText(this.heading, text);
+  async expectCartBadgeCount(count: string) {
+    await this.expectText(this.cartBadge, count);
   }
 
-  async expectLinkVisible(linkName: string) {
-    await this.waitForVisible(this.linkByName(linkName)); // consumes the factory
+  async addProductToCart(productName: string) {
+    await this.click(this.addToCartButton(productName)); // consumes the factory
   }
 
-  private linkByName(linkName: string): Locator {
-    // parameterized: a factory, never inlined into expectLinkVisible above
-    return this.page.getByRole('link', { name: linkName, exact: true });
+  private addToCartButton(productName: string): Locator {
+    // parameterized: a factory, never inlined into addProductToCart above
+    return this.productCard(productName).getByRole('button', { name: 'Add to cart' });
+  }
+
+  private productCard(productName: string): Locator {
+    return this.page
+      .locator('[data-test="inventory-item"]')
+      .filter({ has: this.page.getByRole('link', { name: productName, exact: true }) });
   }
 }
 ```
@@ -341,23 +346,21 @@ Prefer semantic locators (`getByRole`, `getByLabel`, `getByText`, `getByTestId`)
 Use a Component for a reusable, identifiable region of a page: navigation bars, headers, sidebars, modals, widgets that appear across multiple pages or repeat within one. `BaseComponent` (`src/components/base/BaseComponent.ts`) scopes a Component to its own `root: Locator`, received in the constructor alongside `page`:
 
 ```ts
-export class ExampleNavigationComponent extends BaseComponent {
+export class SomeNavigationComponent extends BaseComponent {
   constructor(page: Page) {
     super(page, page.getByRole('navigation', { name: 'Main' }));
   }
 }
 ```
 
-Every locator inside the Component is built from `this.root` — never `this.page` directly — following the same static/parameterized convention as Pages. A Component never gets `goto`/`reload`/`waitForUrlContains`; those stay exclusive to `BasePage` (the type system rejects them, not just a convention).
-
-A Page **composes** its Components as properties — it does not inherit from them:
+**There is no concrete Component in this repo today.** SauceDemo's checkout flow (the canonical UI example) doesn't have a reusable, identifiable region that would justify one, so none was created — `src/components/` holds only the `BaseComponent` contract shown above, illustrative rather than a real, running file. Don't create a Component just to split a file, or to have "an example of one"; it should represent something a person would point to and call "the nav" or "the modal", composed as a property of a Page (never inherited from):
 
 ```text
-ExamplePage
-  └── navigation: ExampleNavigationComponent
+SomePage
+  └── navigation: SomeNavigationComponent
 ```
 
-Don't create a Component just to split a file; it should represent something a person would point to and call "the nav" or "the modal".
+Every locator inside a Component is built from `this.root` — never `this.page` directly — following the same static/parameterized convention as Pages. A Component never gets `goto`/`reload`/`waitForUrlContains`; those stay exclusive to `BasePage` (the type system rejects them, not just a convention).
 
 ## Database Testing
 
@@ -487,7 +490,7 @@ npm test
 Upload Cucumber reports (cucumber-reports artifact)
 ```
 
-CI runs with `DB_ENABLED=false` and the default `not @db` test suite — no Oracle credentials, no Oracle Instant Client, nothing to configure. `BASE_URL`/`HEADLESS`/`BROWSER`/`DB_ENABLED` are plain workflow `env` values (all public, non-sensitive) — not GitHub secrets.
+CI runs with `DB_ENABLED=false` and the default `not @db` test suite — no Oracle credentials, no Oracle Instant Client, nothing to configure. That suite is, today, exactly the canonical SauceDemo checkout scenarios. `SAUCEDEMO_BASE_URL`/`HEADLESS`/`BROWSER`/`DB_ENABLED` are plain workflow `env` values (all public, non-sensitive) — not GitHub secrets. `SAUCEDEMO_BASE_URL` is declared explicitly in the workflow (rather than relying only on the code default in `src/config/index.ts`) so the target CI validates is visible directly in `ci.yml`.
 
 Only Chromium is installed in CI, for a fast signal; Firefox/WebKit were validated manually but are not part of the automated pipeline yet.
 
@@ -541,7 +544,8 @@ This is an honest list — none of the following is implemented today:
 - No `@db` Feature exists yet, so `npm run test:db` currently runs 0 scenarios.
 - There is no API-testing layer.
 - CI installs and runs against Chromium only (Firefox/WebKit are validated manually, not in CI); Cucumber runs sequentially, with no parallelism or automatic retries configured.
-- The UI example depends on an external public site, `https://playwright.dev`, being reachable and keeping its current heading/navigation.
+- The canonical UI example depends on an external public site, `https://www.saucedemo.com`, being reachable and keeping its current behavior/copy.
+- There is no concrete Component in the repo today (see [Components](#components)) — only the `BaseComponent` contract. The pattern is documented and enforced (see [Architecture Guardrails](#architecture-guardrails)), but not demonstrated by a real, running file.
 - No authentication/session-reuse layer: `CustomWorld.init()` always creates a brand-new, empty `BrowserContext` — no `storageState`, no programmatic login, no session sharing between scenarios.
 - No Test Data Management layer — repositories build ad hoc queries; there is no seeding/factory framework.
 - No structured logging framework.
@@ -559,9 +563,6 @@ Possible future extensions — **not implemented**, listed to show where this ar
 - Additional tags/scripts for other test subsets.
 
 ## Troubleshooting
-
-**`BASE_URL is required before navigating to an application.`**
-`BASE_URL` isn't set. Add it to `.env` or export it before running (see [Environment Configuration](#environment-configuration)).
 
 **Browser not installed / Playwright launch error**
 Run `npx playwright install` (or `npx playwright install chromium` if you only need the default suite).

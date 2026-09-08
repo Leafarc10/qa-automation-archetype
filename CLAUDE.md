@@ -76,8 +76,14 @@ Locators:
 Las acciones y validaciones **consumen** esos locators; nunca construyen un locator inline
 dentro de una acción o assertion.
 
-Ejemplos canónicos (uno solo de cada cosa, a propósito):
-`src/pages/example/ExamplePage.ts`, `src/components/example/ExampleNavigationComponent.ts`.
+Ejemplo canónico de Page (uno solo, a propósito): `src/pages/sauceDemo/SauceDemoLoginPage.ts`
+(ver también el resto de `src/pages/sauceDemo/**`, que compone el flujo canónico de UI del
+arquetipo — checkout completo en SauceDemo, `docs/refactor-progress-ia/T19.1-canonical-ui-cleanup.md`).
+
+**No existe hoy ningún Component concreto en el repo** — el flujo canónico de SauceDemo no tiene
+una región reutilizable que justifique uno, y no se crea un Component solo para tener un ejemplo.
+`src/components/base/BaseComponent.ts` sigue siendo el contrato vigente (§3 más abajo); si una
+tarea real necesita un Component, ese será el primer ejemplo vivo.
 
 ---
 
@@ -109,8 +115,8 @@ El trabajo del Step es traducir **Gherkin → API del framework**. Nada más.
 
 El resto del código consume:
 
-- `config` — objeto tipado y validado (`baseUrl`, `headless`, `browser`, `defaultTimeoutMs`, `db`)
-- `requireBaseUrl()` — cuando la URL base es obligatoria para navegar
+- `config` — objeto tipado y validado (`sauceDemoBaseUrl`, `headless`, `browser`, `defaultTimeoutMs`, `db`)
+- `requireSauceDemoBaseUrl()` — URL base del ejemplo canónico de UI (SauceDemo)
 
 No leer `process.env` fuera de `src/config/**` y `*.test.ts`.
 No inventar variables de ambiente nuevas sin necesidad real y sin actualizar

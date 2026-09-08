@@ -113,11 +113,19 @@ superficie normal en la que trabajás es:
 - `*.test.ts` solo bajo `src/**`, `support/**`, `features/**`
 - `docs/**` (registro de la tarea, si corresponde)
 
-Seguí los ejemplos canónicos del repo, no inventes un patrón nuevo: `features/example/example.feature`,
-`features/steps/example.steps.ts`, `src/pages/example/ExamplePage.ts`,
-`src/components/example/ExampleNavigationComponent.ts`,
-`src/database/repositories/example/ExampleRepository.ts`. Los steps solo usan
-`this.pages`/`this.repositories`/`this.testContext` (`CLAUDE.md` §4). Locators: campo
+Seguí los ejemplos canónicos del repo, no inventes un patrón nuevo:
+
+- Canonical UI Feature: `features/sauceDemo/checkout.feature`
+- Canonical UI Steps: `features/steps/sauceDemo/checkout.steps.ts`
+- Canonical Page example: `src/pages/sauceDemo/SauceDemoLoginPage.ts` (o la Page de SauceDemo que
+  mejor represente el patrón que necesitás)
+- Component: hoy **no existe** ningún Component concreto en el repo —
+  `src/components/base/BaseComponent.ts` es el contrato. No inventes un Component únicamente para
+  tener un ejemplo; creá uno solo si tu plan aprobado realmente lo necesita.
+- Database Repository example: `src/database/repositories/example/ExampleRepository.ts` sigue
+  siendo el ejemplo canónico del patrón DB.
+
+Los steps solo usan `this.pages`/`this.repositories`/`this.testContext` (`CLAUDE.md` §4). Locators: campo
 `private readonly` si son estáticos, factory privado si son parametrizados. Un Page nuevo se
 registra en `Pages.ts`; un Repository nuevo necesita una línea en `RepositoryContainer.ts`, que
 es infraestructura protegida — si tu plan la incluyó y fue aprobada, hacé exactamente esa línea
