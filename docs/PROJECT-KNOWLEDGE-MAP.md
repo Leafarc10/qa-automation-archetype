@@ -13,12 +13,13 @@ todo, **cuál es su estatus**:
 
 ```text
 docs/
-├── SDET-PLAYBOOK.md                            CURRENT
-├── PROJECT-KNOWLEDGE-MAP.md                     CURRENT
-├── ai-automation-archetype-final-readiness.md   CURRENT
-├── history/                                     HISTORICAL
-├── refactor-progress/                           HISTORICAL
-└── refactor-progress-ia/                        HISTORICAL
+├── SDET-PLAYBOOK.md                         CURRENT
+├── PROJECT-KNOWLEDGE-MAP.md                 CURRENT
+├── GPT-DECISION-ADVISOR.md                  CURRENT
+├── ai-automation-archetype-final-readiness.md CURRENT
+├── history/                                 HISTORICAL
+├── refactor-progress/                       HISTORICAL
+└── refactor-progress-ia/                    HISTORICAL
 ```
 
 Los tres archivos sueltos en la raíz de `docs/` son el estado vigente. Todo lo que vive bajo un
@@ -32,6 +33,7 @@ directorio (`history/`, `refactor-progress/`, `refactor-progress-ia/`) es un reg
 |---|---|---|
 | [`README.md`](../README.md) | OPERATIVE | Uso, setup, comandos, tags, tabla de guardrails con su alcance, workflow AI-assisted |
 | [`docs/SDET-PLAYBOOK.md`](./SDET-PLAYBOOK.md) | CURRENT | **La guía de estudio.** 36 secciones: qué es cada cosa, cómo está implementada acá, por qué se diseñó así, qué error evita, y cómo explicarla en una entrevista |
+| [`GPT-DECISION-ADVISOR.md`](./GPT-DECISION-ADVISOR.md) | CURRENT | Contexto maestro para usar GPT como segundo par de ojos al evaluar Gate 1, Gate 2, Automation Plans, Reviewer findings y decisiones de arquitectura |
 | [`CLAUDE.md`](../CLAUDE.md) | OPERATIVE | Contrato operativo: arquitectura, límites por capa, qué está machine-enforced y qué no, infraestructura protegida, Definition of Done |
 | [`AGENTS.md`](../AGENTS.md) | OPERATIVE | Mapa de arquitectura para contribuidores y asistentes: qué leer antes de tocar código |
 
@@ -140,6 +142,7 @@ Este repo implementa **CI, no CD**.
 | `.claude/settings.json` | Modelo de permisos: 20 reglas `ask` + `deny: ["Read(/.env)"]` |
 | `.mcp.json` | Servidor MCP project-scoped: `@playwright/mcp@0.0.80` |
 | `CLAUDE.md` §17 | Resumen operativo de esta capa dentro del contrato |
+| `docs/GPT-DECISION-ADVISOR.md` | Segundo par de ojos para decisiones humanas: Gate 1, Gate 2, Automation Plans, Reviewer findings y arquitectura |
 
 → Explicación completa: Playbook §19–§24.
 
