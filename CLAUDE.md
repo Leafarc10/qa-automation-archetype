@@ -59,6 +59,10 @@ BaseUiObject          (src/base/BaseUiObject.ts)             — esperas, accion
 
 Reglas:
 
+- Todo objeto UI vive en un **path canónico**: una Page en `src/pages/**`, un Component en
+  `src/components/**`. No existe una tercera ubicación. Una clase que reciba un `Page` o
+  construya `Locator`s fuera de esos dos paths está fuera de la arquitectura **y fuera del
+  alcance de los guardrails** (F-17 en §8): el enforcement de UI está anclado por path.
 - Un Page concreto **extends `BasePage`**. Siempre. Sin excepciones.
 - Un Component concreto **extends `BaseComponent`**. Siempre. Sin excepciones.
 - Un Component trabaja **dentro de `this.root`** y **nunca usa `this.page`**.
@@ -104,8 +108,32 @@ Desde un Step está **prohibido**:
 - SQL de cualquier forma
 - `process.env`
 - `waitForTimeout(...)`
+- las **primitivas de navegación** heredadas de `BasePage` — `.goto()`, `.reload()`,
+  `.waitForUrlContains()` — aunque sean alcanzables vía `this.pages.<page>`
 
 El trabajo del Step es traducir **Gherkin → API del framework**. Nada más.
+
+### 4.1. Navegación desde un Step
+
+`BasePage.goto/reload/waitForUrlContains` son **públicos** y por lo tanto alcanzables desde un
+Step a través de `this.pages`. Ningún guardrail lo bloquea hoy (F-18 en §8). La regla es
+contractual y la revisa `automation-reviewer`:
+
+```ts
+// ❌ prohibido — el Step implementa navegación y hardcodea una URL
+await this.pages.sauceDemoLogin.goto('https://www.saucedemo.com/');
+await this.pages.sauceDemoCheckoutInfo.waitForUrlContains('checkout-step-one');
+
+// ✅ correcto — el Step expresa intención; la Page consume la primitiva
+await this.pages.sauceDemoLogin.open(); // internamente: goto(requireSauceDemoBaseUrl())
+await this.pages.sauceDemoCheckoutInfo.expectOnCheckoutInformationForm();
+```
+
+Un Step llama **solo métodos semánticos** de una Page (`open()`, `login()`, `addToCart()`,
+`checkout()`, `expect…()`). La Page es la única responsable de consumir `goto`/`reload`/
+`waitForUrlContains`, y la única que resuelve la URL base desde `config`
+(`requireSauceDemoBaseUrl()`). Si un Step necesita navegar a un lugar para el que no existe
+método semántico, el método se agrega a la Page — no se llama la primitiva desde el Step.
 
 ---
 
@@ -202,8 +230,24 @@ El walker de estos tests ignora: `node_modules`, `.git`, `reports`, `test-result
 ### 7.4. Unit tests
 
 `test:unit` = `node --test` sobre `src/**/*.test.ts`, `support/**/*.test.ts`,
-`features/**/*.test.ts`. Hoy: **61 tests / 23 suites** — `QueryBuilder`
+`features/**/*.test.ts`. Hoy: **62 tests / 23 suites** — `QueryBuilder`
 (modelo de binds y allowlists), `config`, y los architecture tests.
+
+### 7.5. Alcance real de estas reglas
+
+Todas las reglas de §7.1 y §7.2 tienen un **scope medido**, no universal. Dos ejes importan:
+
+- **Extensión:** ESLint solo mira `.ts` (F-03), y `tsc` solo mira `src/**`, `support/**`,
+  `features/**` (F-10).
+- **Path:** los guardrails de UI están **anclados por path**. A9 filtra a `src/pages/**`,
+  A10/A11 a `src/components/**`, y la lista de imports prohibidos de G5 nombra
+  `src/pages/**`, `src/components/**` y `src/database/**`. **Nada** restringe una clase
+  UI-like ubicada fuera de esos paths.
+
+Consecuencia operativa: **`npm run quality` verde es necesario pero no suficiente.** Es
+prueba de corrección solo *dentro del scope explícitamente medido*. Fuera de ese scope —
+paths no canónicos, patterns nuevos, `.js`, `.ts` fuera de las tres raíces — la corrección
+arquitectónica depende de review (§8).
 
 ---
 
@@ -212,10 +256,13 @@ El walker de estos tests ignora: `node_modules`, `.git`, `reports`, `test-result
 > `npm run quality` verde es **obligatorio**, pero **no sustituye** review arquitectónico
 > humano. Existen caminos donde código incorrecto todavía pasa el gate en verde.
 
-Fuente medida: `docs/ai-foundation-readiness-final.md` §7.
+Fuente medida: `docs/ai-foundation-readiness-final.md` §7 y
+`docs/ai-automation-archetype-final-audit.md` §6 y §19.
 
 | Finding | Qué sigue pasando en verde | Consecuencia para Claude |
 |---|---|---|
+| **F-17** | Una clase **UI-like fuera de los paths canónicos** (por ejemplo `src/screens/Rogue.ts`) que no extiende nada, que recibe un `Page` crudo y arma locators con strings CSS, importada **directamente** por un Step, pasa el gate completo: A9/A10/A11 filtran por path y G5 solo prohíbe importar `src/pages/**`, `src/components/**` y `src/database/**` | Todo objeto UI vive en `src/pages/**` (extends `BasePage`) o `src/components/**` (extends `BaseComponent`). **Nunca** crear una clase que maneje un `Page`/`Locator` fuera de esos dos paths, ni un directorio UI nuevo, sin plan explícitamente aprobado por el usuario. |
+| **F-18** | `BasePage.goto()`, `.reload()` y `.waitForUrlContains()` son **públicos**: un Step puede llamarlos vía `this.pages.<page>.goto('https://cualquier-cosa')`, hardcodeando URL y saltando `requireSauceDemoBaseUrl()`, sin que dispare ningún guardrail | Un Step **nunca** llama `.goto()`, `.reload()` ni `.waitForUrlContains()`. Llama métodos semánticos de la Page (`open()`, `login()`, `checkout()`, `expect…()`); la Page es la única que consume las primitivas de navegación (§4). |
 | **F-03** | Los archivos `.js` no tienen ningún guardrail (`process.env`, `oracledb`, `waitForTimeout` pasan) | No escribir código de framework en `.js`. Todo el código productivo es `.ts`. |
 | **F-10** | Un `.ts` fuera de `src/`, `support/`, `features/` nunca se typechequea | No crear código `.ts` fuera de esas tres raíces. |
 | **F-06** | Un Step puede importar `playwright-core` y lanzar su propio browser (G5 no lo cubre) | Nunca importar `playwright-core`. Los Steps solo usan `this.pages`. |
@@ -228,26 +275,71 @@ Fuente medida: `docs/ai-foundation-readiness-final.md` §7.
 | **F-12** | El comentario en `src/architecture.test.ts:25` describe el destructuring de `process` como un gap abierto, cuando ESLint sí lo bloquea — comentario obsoleto | No tomar comentarios como enforcement; verificar contra la regla. |
 | **F-13 / F-14** | Aliasear `process`; directorios `.tmp-*` invisibles al walker | Informativos. |
 
-Lo que **sí** está garantizado hoy: no se puede introducir un runner paralelo por los
-scripts del proyecto ni por CI, no se puede romper la jerarquía UI, no puede existir un test
-silenciosamente muerto, no se filtran secretos, y `QueryBuilder` no construye SQL sin binds.
+`F-17` y `F-18` son, respectivamente, los findings `H-01` y `M-05` de
+`docs/ai-automation-archetype-final-audit.md`, incorporados acá por T20.1.
+
+### 8.1. Qué está garantizado y qué no
+
+**MACHINE ENFORCED — garantizado hoy:**
+
+- no se puede introducir un runner paralelo por los scripts del proyecto ni por CI (A1/A2/A3, G1/G7/G8);
+- **dentro de `src/pages/**`**, toda clase concreta extiende `BasePage` (A9);
+- **dentro de `src/components/**`**, toda clase concreta extiende `BaseComponent` (A10) y no accede a `this.page` (A11, con el escape de F-15);
+- un Step no puede acceder a `this.page`/`this.context`/`this.browser`, ni importar `playwright`/`@playwright/test`/`oracledb`/`src/pages/**`/`src/components/**`/`src/database/**`, ni usar `waitForTimeout`, ni leer `process.env` (G5, G2, G3, G4);
+- no puede existir un test silenciosamente muerto (A12);
+- no se filtran secretos, y `QueryBuilder` no construye SQL sin binds.
+
+**NOT MACHINE ENFORCED — requiere review (humano y `automation-reviewer`):**
+
+- una clase UI-like creada **fuera** de `src/pages/**` / `src/components/**` (F-17) — el gate no la ve;
+- un patrón o directorio UI nuevo que los guardrails no conocen — el enforcement es por path, así que un path nuevo nace sin cobertura;
+- el uso de las primitivas de navegación públicas de `BasePage` desde un Step (F-18);
+- todos los bypasses documentados arriba (F-03, F-06 … F-16);
+- las convenciones de locators, "Steps finos" y "reutilizar antes de crear" — son review-enforced, ningún rule falla el build si se desvían.
+
+**No presentar `npm run quality` verde como prueba de corrección arquitectónica.** Es
+condición **necesaria** y nunca **suficiente** fuera del scope medido en §7.5.
 
 ---
 
 ## 9. Infraestructura protegida
 
-Claude **no modifica** estos archivos/directorios sin scope explícito del usuario:
+Claude **no modifica** estos archivos/directorios sin scope explícito del usuario. La
+protección tiene dos capas distintas, y conviene no confundirlas:
 
-- `src/base/**`
-- `src/pages/base/BasePage.ts`, `src/components/base/BaseComponent.ts`
-- `support/world.ts`, `support/hooks.ts`, `support/databaseLifecycle.ts`
-- infraestructura de `src/database/**` (`clients/`, `builders/`, `repositories/BaseRepository.ts`, `RepositoryContainer.ts`)
-- `eslint.config.js`
-- `src/architecture.test.ts`
-- `tsconfig.json`
-- `cucumber.js`
-- `package.json` (scripts / dependencias)
-- `.github/workflows/**`
+- **native permission ask** — hay una regla `permissions.ask` en `.claude/settings.json`, así
+  que un `Edit`/`Write` sobre ese path dispara un prompt de confirmación real del harness.
+- **contract-only** — no hay regla nativa; la única barrera es este contrato.
+
+| Path | Capa |
+|---|---|
+| `src/base/**` | native permission ask |
+| `src/pages/base/BasePage.ts` | native permission ask |
+| `src/components/base/BaseComponent.ts` | native permission ask |
+| `support/world.ts`, `support/hooks.ts`, `support/databaseLifecycle.ts` | native permission ask |
+| `src/database/clients/**`, `src/database/builders/**` | native permission ask |
+| `src/database/repositories/BaseRepository.ts`, `src/database/RepositoryContainer.ts` | native permission ask |
+| `eslint.config.js` | native permission ask |
+| `src/architecture.test.ts` | native permission ask |
+| `tsconfig.json` | native permission ask |
+| `cucumber.js` | native permission ask |
+| `package.json` (scripts / dependencias) | native permission ask |
+| `package-lock.json` | native permission ask |
+| `.github/workflows/**` | native permission ask |
+| `CLAUDE.md` (este contrato) | native permission ask |
+| `.claude/**` (agentes, skills, `settings.json`) | native permission ask |
+| `.mcp.json` (definición del servidor MCP) | native permission ask |
+| `AGENTS.md`, `README.md`, `src/database/AGENTS-database.md`, `support/AGENTS-support.md` | contract-only |
+
+Dos precisiones sobre el alcance real de la capa nativa:
+
+1. La regla es `Edit(<path>)`, que cubre también la creación vía `Write`. **No cubre una
+   reescritura por shell** (`sed -i`, redirección, `Set-Content`): `automation-engineer`
+   tiene `Bash`, así que ahí la barrera es contractual, no mecánica. Buscar ese rodeo después
+   de una confirmación denegada es una violación directa de este contrato.
+2. Nunca se confirmó empíricamente que el patrón con slash inicial (`Edit(/CLAUDE.md)`)
+   dispare el prompt en runtime — abierto desde T13.1 §10, no cerrable sin una edición no
+   autorizada. Tratá la lista de arriba como contrato **aunque** el prompt no aparezca.
 
 Si una tarea realmente necesita tocar infraestructura:
 
@@ -299,6 +391,12 @@ NEEDS CONFIRMATION
 
 …y pedir la información antes de implementar esa parte. Un selector inventado, una URL
 inventada o un dato inventado producen un test que miente.
+
+**Única excepción vigente sobre credenciales:** `standard_user` / `secret_sauce`, que aparecen
+en `features/sauceDemo/checkout.feature`, son las **credenciales públicas de demo** que el
+propio SauceDemo publica en su pantalla de login. No son corporativas, no son secretas y no
+son un ejemplo a imitar: cualquier credencial real sigue viniendo de configuración/entorno y
+**nunca** se escribe en un Feature, Step, Page o Component.
 
 ---
 
@@ -373,3 +471,54 @@ propuesta que obligue a un QA a abrir `src/base/**`, `support/world.ts` o
 | Enforcement real medido + limitaciones | `docs/ai-foundation-readiness-final.md` |
 | Auditoría previa (findings originales) | `docs/ai-foundation-final-audit.md` |
 | Rationale de cada guardrail | `docs/refactor-progress-ia/` |
+| Capa AI-assisted (agentes, skill, gates, MCP) | §17 de este archivo · `.claude/agents/**` · `.claude/skills/qa-automate/SKILL.md` |
+| Auditoría adversarial de la capa IA | `docs/ai-automation-archetype-final-audit.md` |
+| Estado de readiness vigente | `docs/ai-automation-archetype-final-readiness.md` |
+
+---
+
+## 17. Capa AI-assisted (agentes, skill, gates, MCP)
+
+Este repo no se automatiza solo "con Claude Code": tiene un **pipeline de tres agentes** con
+gates humanos explícitos, definido en `.claude/**` y versionado junto al código.
+
+```text
+/qa-automate                    (skill; el orquestador es la sesión principal, no un 4º agente)
+      ↓
+qa-analyst                      requerimiento → escenarios → UNKNOWNs
+      ↓
+GATE 1                          aprobación humana de la QA Analysis
+      ↓
+automation-engineer  MODE: PLAN propone REUSE / CREATE / MODIFY — no escribe nada
+      ↓
+GATE 2                          aprobación humana del Automation Plan
+      ↓
+automation-engineer  MODE: IMPLEMENT + marca literal `PLAN APPROVED`
+      ↓
+automation-reviewer             review independiente, read-only sobre el repo
+```
+
+| Agente | Responsabilidad | Escritura | Shell | Playwright MCP |
+|---|---|---|---|---|
+| `qa-analyst` | requerimiento, escenarios (positivos y negativos), precondiciones, datos, validaciones, `UNKNOWN`/`NEEDS CONFIRMATION` | ninguna | no | **no** — deliberadamente |
+| `automation-engineer` | `MODE: PLAN` (propone) y `MODE: IMPLEMENT` (escribe), corre `quality` + E2E | `Edit`, `Write` | sí | **sí** — 10 tools |
+| `automation-reviewer` | review independiente contra un checklist fijo; reproduce `quality` y E2E por su cuenta | ninguna | sí | **sí** — subconjunto de 5, sin tools de formulario |
+
+Reglas del flujo, no negociables:
+
+- **Los gates son humanos.** Solo el usuario aprueba una QA Analysis o un Plan.
+- **Silencio ≠ aprobación.** Sin decisión explícita, el flujo espera.
+- **`CHANGES_REQUESTED` devuelve el control al usuario.** Ni el Reviewer ni la sesión
+  principal corrigen de oficio, y no existe un loop automático Engineer ↔ Reviewer.
+- **`VALIDATION_FAILED` detiene el flujo** — no se invoca al Reviewer.
+- **No hay auto-approval ni silent approval**: el Reviewer no aprueba con findings abiertos,
+  y recibe únicamente los tres documentos de handoff más el working tree — nunca el
+  transcript ni el razonamiento del Engineer.
+- **`npm run quality` verde no sustituye la review** (§7.5, §8.1).
+
+**MCP:** servidor `playwright` (`@playwright/mcp@0.0.80`), **project-scoped** en `.mcp.json`.
+Es un browser real e independiente del `playwright` que usa el framework: sirve para
+**observar** la aplicación (accessibility tree, roles, nombres accesibles, URLs) antes de
+escribir un locator. Nunca decide una regla de negocio, un escenario, un dato correcto ni
+arquitectura — eso sale de la QA Analysis aprobada y de este contrato. Todo literal apoyado en
+una observación MCP se marca `SOURCE: MCP_OBSERVED`.

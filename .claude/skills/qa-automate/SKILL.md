@@ -11,9 +11,14 @@ cuenta: tu único trabajo es coordinar a `qa-analyst`, `automation-engineer` y `
 y sostener los gates humanos entre ellos.
 
 Leé (si no lo tenés ya en contexto) `CLAUDE.md` antes de arrancar. Los tres agentes ya existen en
-`.claude/agents/` y están validados en runtime (`docs/refactor-progress-ia/T13-claude-agents.md`,
-`docs/refactor-progress-ia/T13.1-runtime-validation.md`) — este skill no los modifica, no los
-reemplaza, y no crea un cuarto agente "Orchestrator".
+`.claude/agents/` y están validados **en runtime** — descubrimiento del agente, tool list efectiva
+y dry runs controlados (`docs/refactor-progress-ia/T13-claude-agents.md`,
+`docs/refactor-progress-ia/T13.1-runtime-validation.md`,
+`docs/ai-automation-archetype-final-audit.md` §12–§13). No existe hoy un validador estático que
+verifique estos archivos: `claude plugin validate` sobre `.claude/agents` devuelve verde
+inspeccionando **cero** archivos, porque estos agentes son project-scoped y no un plugin — no lo
+uses como evidencia de nada. Este skill no modifica a los agentes, no los reemplaza, y no crea un
+cuarto agente "Orchestrator".
 
 ## Reglas de seguridad (aplican durante todo el flujo, sin excepción)
 
@@ -30,7 +35,17 @@ reemplaza, y no crea un cuarto agente "Orchestrator".
 - La infraestructura protegida sigue bajo `permissions.ask` (`.claude/settings.json`): si un
   `Edit`/`Write` de `automation-engineer` dispara un prompt de confirmación real, es el guardrail
   funcionando — no lo evadís, no lo repetís de otra forma.
-- MCP sigue ausente: todo el flujo funciona sin él.
+- **Playwright MCP existe y está escalonado a propósito** (servidor `playwright`,
+  `@playwright/mcp`, project-scoped en `.mcp.json`): `qa-analyst` **no** lo tiene y no debe
+  tenerlo — decide qué *debería* pasar, no observa qué pasa; `automation-engineer` lo tiene
+  completo (10 tools) y puede usarlo en `MODE: PLAN` y en `MODE: IMPLEMENT`;
+  `automation-reviewer` tiene un subconjunto menor (5 tools, sin tools de formulario). Vos no
+  redistribuís esas tools ni le pedís a un agente que use una que no tiene. Si el servidor MCP
+  no está disponible, el flujo sigue siendo válido sin él.
+- **`npm run quality` verde no sustituye la review.** Es condición necesaria y nunca suficiente:
+  el enforcement de UI está anclado por path y no cubre clases UI fuera de `src/pages/**` /
+  `src/components/**`, ni las primitivas públicas de navegación llamadas desde un Step
+  (`CLAUDE.md` §7.5 y §8). Nunca cierres el flujo con "quality pasó" como argumento.
 - Los handoffs (QA Analysis, Automation Plan, Implementation Report, Review Report) viajan en el
   contexto de la conversación. No creás archivos nuevos para ellos — ni siquiera temporales — salvo
   que el usuario lo pida explícitamente.
@@ -112,8 +127,13 @@ de incluirlas siempre.
 Invocá `Agent` con `subagent_type: "automation-reviewer"`, pasándole únicamente: la QA Analysis
 aprobada, el Automation Plan aprobado, y el Implementation Report completo. **Nunca le pases tu
 propio razonamiento ni el transcript del Engineer** — el Reviewer tiene que juzgar el resultado
-sin la historia de cómo se llegó a él. El propio Reviewer relee el working tree y vuelve a correr
-`npm run quality`/E2E por su cuenta; no hace falta que se lo indiques.
+sin la historia de cómo se llegó a él.
+
+**La evidencia del Reviewer tiene que ser suya.** Relee el working tree y vuelve a correr
+`npm run quality` y el E2E relevante por su cuenta; no hace falta que se lo indiques, y no
+aceptes un veredicto que se apoye en los exit codes que reportó el Engineer. Tampoco le
+"adelantes" resultados vos: si le pasás tu propia corrida como si fuera la de él, destruís
+exactamente la independencia por la que existe ese agente.
 
 ## Resultado de la review
 

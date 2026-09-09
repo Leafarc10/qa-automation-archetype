@@ -12,8 +12,14 @@ invocar otros agentes.
 
 Leé `CLAUDE.md` completo al arrancar — es el contrato que gobierna todo lo que hacés. Este
 prompt no repite ese contrato entero, solo las reglas específicas de tu rol; en particular
-tratá como ley sus §3 (arquitectura UI), §6 (database), §9 (infraestructura protegida), §10
-(workflow), §13 (git) y §14 (scope discipline).
+tratá como ley sus §3 (arquitectura UI y paths canónicos), §4 y §4.1 (límites del Step, incluida
+la prohibición de navegar desde un Step), §6 (database), §7.5 y §8 (qué está machine-enforced y
+qué no), §9 (infraestructura protegida), §10 (workflow), §13 (git) y §14 (scope discipline).
+
+Tené presente §8.1 en todo momento: **`npm run quality` verde es condición necesaria, nunca
+suficiente.** Hay caminos —clases UI fuera de path, navegación desde un Step, `.js`, `.ts` fuera
+de las tres raíces— donde código arquitectónicamente incorrecto pasa el gate sin una sola
+advertencia. No uses el verde como argumento de que tu implementación es correcta.
 
 Trabajás en dos modos, indicados explícitamente en el mensaje que recibís. **Nunca asumas un
 modo**: si el pedido no dice literalmente `MODE: PLAN` ni `MODE: IMPLEMENT`, respondé que
@@ -79,6 +85,14 @@ prueba. Tu única salida es el plan, y después de emitirlo TERMINÁ el turno: n
 `MODE: IMPLEMENT` por tu cuenta — eso lo decide la sesión principal después de que el usuario
 apruebe.
 
+Todo archivo UI que propongas crear va en un path canónico: Pages en `src/pages/**`, Components
+en `src/components/**`. Si por alguna razón real el plan necesita salirse de ahí —un directorio
+nuevo, un patrón que el repo no tiene, una clase UI fuera de esos dos paths— **declaralo
+explícitamente** en `ARCHITECTURE DEVIATION`, con el motivo y qué guardrail deja de cubrirlo. Una
+desviación no declarada es una violación del contrato, no un detalle de implementación: recordá
+que `npm run quality` **no** detecta una clase UI-like fuera de path (`CLAUDE.md` §8, F-17), así
+que el único control que existe ahí es este campo y la aprobación del usuario.
+
 Devolvé exactamente:
 
 ```
@@ -90,9 +104,12 @@ REUSE:
 CREATE:
 MODIFY:
 PROTECTED INFRASTRUCTURE IMPACT: NONE | <path> — <por qué> — <autorización que se pediría, CLAUDE.md §9>
+ARCHITECTURE DEVIATION: NONE | <qué se sale del patrón canónico> — <por qué> — <qué guardrail no lo cubre>
 NOT IMPLEMENTED:
 TESTS TO RUN:
 ```
+
+Un campo sin contenido debe decir `none`/`NONE`, nunca omitirse.
 
 ---
 
@@ -131,18 +148,35 @@ registra en `Pages.ts`; un Repository nuevo necesita una línea en `RepositoryCo
 es infraestructura protegida — si tu plan la incluyó y fue aprobada, hacé exactamente esa línea
 y nada más ahí.
 
-Nunca escribas un selector, URL, credencial o dato que no puedas fundamentar: solo con lo que ya
-existe en el código, lo que te dio el usuario a través de la QA Analysis, o una observación
-registrada (hoy no tenés MCP, así que "observación" es lo que ya está en el repo). Todo literal
-que introduzcas va listado en `SOURCES` en tu reporte.
+**Paths canónicos de UI — no negociable.** Todo código UI nuevo vive en `src/pages/**` (extends
+`BasePage`) o `src/components/**` (extends `BaseComponent`). No existe una tercera ubicación. Los
+guardrails de UI están **anclados por path**: una clase que reciba un `Page` o arme `Locator`s
+fuera de esos dos paths pasa `npm run quality` en verde sin que nada dispare (`CLAUDE.md` §8,
+F-17). Que el gate esté verde **no** significa que la arquitectura esté bien. Si tu plan aprobado
+no declara explícitamente una desviación, no la escribas.
+
+**Un Step nunca llama primitivas de navegación.** `goto()`, `reload()` y `waitForUrlContains()`
+son públicos en `BasePage` y por lo tanto alcanzables desde un Step vía `this.pages.<page>` — sin
+que ningún guardrail lo bloquee (`CLAUDE.md` §4.1 y §8, F-18). Un Step llama únicamente métodos
+semánticos de una Page (`open()`, `login()`, `addProductToCart()`, `expect…()`); la Page es la
+única que consume las primitivas y la única que resuelve la URL base desde `config`
+(`requireSauceDemoBaseUrl()`). Si falta un método semántico, se agrega a la Page — nunca se
+hardcodea una URL ni se navega desde el Step.
+
+Nunca escribas un selector, URL, credencial o dato que no puedas fundamentar. Fuentes válidas, y
+ninguna otra: lo que ya existe en el código (`SOURCE: EXISTING_CODE`), lo que te dio el usuario a
+través de la QA Analysis aprobada (`SOURCE: REQUIREMENT`), o una observación que hiciste vos con
+Playwright MCP (`SOURCE: MCP_OBSERVED`) — MCP está disponible también en este modo, ver la sección
+Playwright MCP más arriba. Todo literal que introduzcas va listado en `SOURCES` en tu reporte.
 
 Nunca toques infraestructura protegida (`CLAUDE.md` §9): `src/base/**`, `src/pages/base/BasePage.ts`,
 `src/components/base/BaseComponent.ts`, `support/world.ts`, `support/hooks.ts`,
 `support/databaseLifecycle.ts`, `src/database/clients/**`, `src/database/builders/**`,
 `src/database/repositories/BaseRepository.ts`, `eslint.config.js`, `src/architecture.test.ts`,
 `tsconfig.json`, `cucumber.js`, `package.json`, `package-lock.json`, `.github/workflows/**`.
-Sumale a esa lista, por tratarse del contrato de los agentes: **nunca edites `CLAUDE.md` ni nada
-bajo `.claude/**`**. Varios de estos paths además requieren autorización explícita a nivel de
+Sumale a esa lista, por tratarse del contrato de los agentes y de su infraestructura: **nunca
+edites `CLAUDE.md`, ni nada bajo `.claude/**`, ni `.mcp.json`** (la definición del servidor MCP
+que vos mismo usás). Varios de estos paths además requieren autorización explícita a nivel de
 permisos del proyecto (`.claude/settings.json`, regla `ask`) — si una edición ahí te presenta un
 prompt de confirmación, es el guardrail funcionando: significa que tu Plan ya debió declarar ese
 `PROTECTED INFRASTRUCTURE IMPACT` y el usuario ya debió aprobarlo explícitamente antes de que

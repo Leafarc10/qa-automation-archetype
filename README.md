@@ -19,6 +19,7 @@ A reusable end-to-end testing archetype: Page Object Model, reusable Components,
 - [Reporting](#reporting)
 - [Code Quality](#code-quality)
 - [Architecture Guardrails](#architecture-guardrails)
+- [AI-Assisted Workflow](#ai-assisted-workflow)
 - [Continuous Integration](#continuous-integration)
 - [Recommended Workflow](#recommended-workflow)
 - [Best Practices](#best-practices)
@@ -38,6 +39,7 @@ This project is a template for automated end-to-end testing, built around:
 - An optional **Oracle database layer**, built behind a small `DatabaseClient` contract so a repository never depends on the driver directly.
 - **ESLint + Prettier** as static quality gates.
 - A minimal **GitHub Actions** workflow.
+- An optional **AI-assisted automation layer** (three Claude Code agents behind explicit human gates, plus a project-scoped Playwright MCP server) — see [AI-Assisted Workflow](#ai-assisted-workflow).
 
 It ships with one real, working **canonical UI example** — a full checkout flow against [SauceDemo](https://www.saucedemo.com/), a public demo store — and one neutral database repository (used only in isolated validations today, not yet wired to a Cucumber scenario). Neither is a real, production application: they exist to show the pattern without pretending to be a full test suite for any particular app.
 
@@ -145,7 +147,7 @@ src/
   base/                BaseUiObject (actions/waits/assertions shared by Pages and Components)
   config/              Central, typed configuration (reads .env)
   pages/               Page Objects (BasePage + concrete pages)
-  components/          Reusable UI Components (BaseComponent + concrete components)
+  components/          Reusable UI Components (BaseComponent contract only — no concrete Component today)
   pageContainer/        Pages container (composes Page Objects)
   database/
     clients/           DatabaseClient contract + OracleDatabaseClient
@@ -164,7 +166,7 @@ Each of these folders owns one responsibility: `base/` owns shared UI infrastruc
 
 ### Prerequisites
 
-- **Node.js** — a recent LTS. CI runs Node 24; any reasonably current Node version works locally.
+- **Node.js** — **>= 24.12** (`engines.node` in `package.json`; CI runs Node 24). This is a hard requirement, not a suggestion: `npm run test:unit` relies on Node's native TypeScript type stripping to run `*.test.ts` under `node --test`. On an older Node the unit/architecture suites fail with a confusing parse error rather than a clear engine message.
 - **npm** (ships with Node).
 - **Git**.
 - **Playwright browsers** (installed via `npx playwright install`, see below).
@@ -265,7 +267,7 @@ Feature: SauceDemo checkout
 
 ### The canonical example: SauceDemo checkout
 
-`features/sauceDemo/checkout.feature` is this archetype's **canonical UI example / reference implementation** — not a production application. It drives a full checkout against [SauceDemo](https://www.saucedemo.com/), a free, public, no-login demo store, covering: login, navigation, forms, a positive end-to-end scenario, and a negative (validation error) scenario. Read it to see the Page Object pattern, central configuration, and thin Steps applied to a real, multi-screen flow.
+`features/sauceDemo/checkout.feature` is this archetype's **canonical UI example / reference implementation** — not a production application. It drives a full checkout against [SauceDemo](https://www.saucedemo.com/), a free, public demo store whose credentials are published on its own login page, covering: login, navigation, forms, a positive end-to-end scenario, and a negative (validation error) scenario. Read it to see the Page Object pattern, central configuration, and thin Steps applied to a real, multi-screen flow.
 
 Flow:
 
@@ -283,10 +285,13 @@ Playwright
 A step, in full:
 
 ```ts
-Given('I log in as a valid SauceDemo user', async function (this: CustomWorld) {
-  await this.pages.sauceDemoLogin.open();
-  await this.pages.sauceDemoLogin.login('standard_user', 'secret_sauce');
-});
+Given(
+  'I log in to SauceDemo as {string} with password {string}',
+  async function (this: CustomWorld, username: string, password: string) {
+    await this.pages.sauceDemoLogin.open();
+    await this.pages.sauceDemoLogin.login(username, password);
+  }
+);
 ```
 
 `SauceDemoLoginPage.open()` reads the URL from config (`requireSauceDemoBaseUrl()`) — never hardcoded in a Feature, Step, Page, or Component. There is no Component in this flow today: every SauceDemo screen is driven directly by its Page Object (see [Components](#components) for why none was introduced here).
@@ -462,13 +467,54 @@ The table below states each rule's **measured** scope (see `docs/ai-foundation-r
 | Every concrete Component under `src/components/**` extends `BaseComponent` (never `BasePage`) | Architecture test (A10) | Every class declared in those files |
 | Components scope UI access through `this.root`, never `this.page` | Architecture test (A11) | `this.page` accesses inside those classes; a locator built from the constructor's local `page` parameter escapes |
 | Every `*.test.ts` lives under a `test:unit` discovery root (`src/**`, `support/**`, `features/**`) so it actually runs | Architecture test (A12) | Whole repo (filesystem) |
+| UI classes live in a canonical path (`src/pages/**` / `src/components/**`) | **Nothing — review only** | The UI guardrails above are **path-anchored**. A Page-like class placed anywhere else (e.g. `src/screens/`), extending nothing and imported directly by a Step, passes the whole gate — see the note below |
+| A Step never navigates directly (`goto`, `reload`, `waitForUrlContains`) | **Nothing — review only** | Those three `BasePage` methods are public, so `this.pages.<page>.goto('https://anything')` from a Step is reachable and hardcodes a URL past central configuration |
 
 Two things this table deliberately does **not** claim:
 
-- **`npm run quality` green is necessary, not sufficient.** The residual gaps named in the "Scope" column above — plus `.ts` files outside `tsconfig.json`'s `include`, which are never typechecked — mean architectural review by a human still matters. `docs/ai-foundation-readiness-final.md` §7 tracks each one.
+- **`npm run quality` green is necessary, not sufficient.** It is evidence of correctness *only inside the measured scope of the "Scope" column above*. The residual gaps named there — plus `.ts` files outside `tsconfig.json`'s `include`, which are never typechecked, `.js` files, which carry no guardrails at all, and above all the two **path-anchored** limits in the last two rows — mean architectural review by a human (or by `automation-reviewer`, see [AI-Assisted Workflow](#ai-assisted-workflow)) still matters. `docs/ai-foundation-readiness-final.md` §7 and `docs/ai-automation-archetype-final-audit.md` §6/§19 track each one; `CLAUDE.md` §8 is the operative list.
 - **Not every convention in this README is machine-enforced.** The locator conventions (static → `private readonly` field; parameterized → private factory), "keep Steps thin", and "reuse before creating" are review-enforced: they are how this codebase is written, but no rule fails the build if you deviate.
 
 See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule, and `CLAUDE.md` for the operating contract an AI agent follows in this repo.
+
+## AI-Assisted Workflow
+
+This archetype ships with an **AI-assisted automation layer**, versioned in `.claude/` alongside the code. It is optional — every command in this README works without it — but if you use Claude Code in this repository, this is the workflow it follows. You do not have to read `.claude/**` to know it exists; this section is the summary.
+
+```text
+/qa-automate                     skill — the orchestrator is your main session, not a fourth agent
+      ↓
+qa-analyst                       requirement → scenarios → UNKNOWNs        (no MCP, no shell, no write)
+      ↓
+GATE 1                           you approve the QA Analysis
+      ↓
+automation-engineer  MODE: PLAN  proposes REUSE / CREATE / MODIFY — writes nothing
+      ↓
+GATE 2                           you approve the Automation Plan (or request changes, or cancel)
+      ↓
+automation-engineer  MODE: IMPLEMENT + the literal marker `PLAN APPROVED`
+      ↓
+automation-reviewer              independent review, read-only over the repo
+```
+
+| Agent | Responsibility | Repo write | Shell | Playwright MCP |
+|---|---|---|---|---|
+| `qa-analyst` | Turns a requirement/user story/bug into expected behavior, positive and negative scenarios, preconditions, test data, validations, risks, and explicit `UNKNOWN` / `NEEDS CONFIRMATION` items. Writes no code, no Gherkin, no locators. | none | no | **no** — withheld on purpose: MCP shows what the app *does*; this agent decides what it *should* do |
+| `automation-engineer` | The only agent that can write. `MODE: PLAN` proposes the minimal file set; `MODE: IMPLEMENT` writes exactly those files, then runs `npm run quality` and the relevant E2E and reports the evidence. | `Edit`, `Write` | yes | **yes** — 10 tools |
+| `automation-reviewer` | Independent review against a fixed checklist. It re-reads the working tree and re-runs `quality`/E2E itself rather than trusting the Engineer's reported exit codes, then issues `APPROVED` or `CHANGES_REQUESTED`. Never edits anything. | none | yes | **yes** — a 5-tool subset, with no form-input tools |
+
+**The gates are human, and they are real:**
+
+- Only you approve a QA Analysis or a Plan. **Silence is never approval** — the flow waits for an explicit decision.
+- `CHANGES_REQUESTED` hands control back to you. Nothing is auto-corrected, and there is no automatic Engineer ↔ Reviewer loop.
+- `VALIDATION_FAILED` stops the flow; the Reviewer is not invoked.
+- No auto-approval and no silent approval: the Reviewer does not approve with open findings, and it receives only the three handoff documents plus the working tree — never the Engineer's transcript or reasoning.
+- **`npm run quality` green does not replace the review** (see [Architecture Guardrails](#architecture-guardrails)).
+- Protected infrastructure (base classes, `support/**`, DB infrastructure, `eslint.config.js`, `src/architecture.test.ts`, `tsconfig.json`, `cucumber.js`, `package.json`, `package-lock.json`, `.github/workflows/**`, `CLAUDE.md`, `.claude/**`, `.mcp.json`) requires your explicit authorization — most of it is also behind a `permissions.ask` rule in `.claude/settings.json`, so an edit there raises a real confirmation prompt.
+
+**Playwright MCP** (`@playwright/mcp`, project-scoped in `.mcp.json`) gives the Engineer and the Reviewer a real browser for *observation* — accessibility tree, roles, accessible names, URLs — so a locator is grounded in what the application actually renders instead of guessed. It is a separate browser from the one the framework drives, and it never decides a business rule, a scenario, a correct value, or architecture.
+
+Where things live: `.claude/agents/*.md` (the three agent contracts), `.claude/skills/qa-automate/SKILL.md` (the orchestration), `.claude/settings.json` (the permission model), `.mcp.json` (the MCP server), and `CLAUDE.md` §17 (the operating contract's own summary of this layer).
 
 ## Continuous Integration
 
@@ -535,6 +581,8 @@ Never commit:
 
 See `.gitignore` for the enforced rules.
 
+**About `standard_user` / `secret_sauce` in the canonical example:** those are the **public demo credentials SauceDemo publishes on its own login page**. They are not corporate, not secret, and not a pattern to copy — they are literals in a Feature only because the target application publishes them itself. Any real credential comes from environment configuration (`src/config/index.ts`), never from a Feature, Step, Page, or Component.
+
 ## Current Limitations
 
 This is an honest list — none of the following is implemented today:
@@ -580,4 +628,6 @@ Try `npm run lint:fix` for auto-fixable issues first, then address whatever rema
 
 Module-level `AGENTS-*.md` files (`src/database/AGENTS-database.md`, `support/AGENTS-support.md`, and the root `AGENTS.md`) document implementation details for contributors and AI coding assistants working in this repository.
 
-`CLAUDE.md` (repo root) is the operating contract for Claude Code and any derived agent: the canonical UI flow, the layer boundaries, which invariants are machine-enforced vs. review-enforced, which infrastructure requires explicit authorization to modify, and the definition of done.
+`CLAUDE.md` (repo root) is the operating contract for Claude Code and any derived agent: the canonical UI flow, the layer boundaries, which invariants are machine-enforced vs. review-enforced, which infrastructure requires explicit authorization to modify, the AI-assisted workflow (§17), and the definition of done.
+
+`.claude/` holds that layer's own definitions — `agents/qa-analyst.md`, `agents/automation-engineer.md`, `agents/automation-reviewer.md`, `skills/qa-automate/SKILL.md` and `settings.json` — and `.mcp.json` declares the project-scoped Playwright MCP server. See [AI-Assisted Workflow](#ai-assisted-workflow) for what they do; `docs/ai-automation-archetype-final-audit.md` and `docs/ai-automation-archetype-final-readiness.md` record how that layer was audited and where it stands.
