@@ -80,7 +80,7 @@ Beyond this file, the repository ships an **AI-assisted automation workflow** wi
 
 Gates are human and cannot be inferred from silence; `CHANGES_REQUESTED` and `VALIDATION_FAILED` return control to the user; nothing is auto-approved or auto-corrected; and a green `npm run quality` does not substitute for the review.
 
-Definitions: `.claude/agents/*.md`, `.claude/skills/qa-automate/SKILL.md`, `.claude/settings.json` (permission model), `.mcp.json` (project-scoped `@playwright/mcp`). Operative summary: `CLAUDE.md` §17. Audit and readiness: `docs/ai-automation-archetype-final-audit.md`, `docs/ai-automation-archetype-final-readiness.md`.
+Definitions: `.claude/agents/*.md`, `.claude/skills/qa-automate/SKILL.md`, `.claude/settings.json` (permission model), `.mcp.json` (project-scoped `@playwright/mcp`). Operative summary: `CLAUDE.md` §17. Audit and readiness: `docs/history/ai-automation-archetype-final-audit.md`, `docs/ai-automation-archetype-final-readiness.md`.
 
 ---
 

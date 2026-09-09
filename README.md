@@ -447,7 +447,7 @@ Both come from Cucumber's own built-in formatters (configured in `cucumber.js`) 
 
 `npm run quality` doesn't just check style — ESLint (`eslint.config.js`) and the architecture tests (`src/architecture.test.ts`, part of `test:unit`) automatically enforce most of the conventions used throughout this README, so a violation fails the gate instead of relying on a reviewer to catch it.
 
-The table below states each rule's **measured** scope (see `docs/ai-foundation-readiness-final.md`): the "Scope" column names the exact reach of the check, so a rule that holds only for `.ts` files, or only for one import form, says so rather than reading as absolute.
+The table below states each rule's **measured** scope (see `docs/history/ai-foundation-readiness-final.md`): the "Scope" column names the exact reach of the check, so a rule that holds only for `.ts` files, or only for one import form, says so rather than reading as absolute.
 
 | Rule | Enforced by | Scope |
 |---|---|---|
@@ -472,7 +472,7 @@ The table below states each rule's **measured** scope (see `docs/ai-foundation-r
 
 Two things this table deliberately does **not** claim:
 
-- **`npm run quality` green is necessary, not sufficient.** It is evidence of correctness *only inside the measured scope of the "Scope" column above*. The residual gaps named there — plus `.ts` files outside `tsconfig.json`'s `include`, which are never typechecked, `.js` files, which carry no guardrails at all, and above all the two **path-anchored** limits in the last two rows — mean architectural review by a human (or by `automation-reviewer`, see [AI-Assisted Workflow](#ai-assisted-workflow)) still matters. `docs/ai-foundation-readiness-final.md` §7 and `docs/ai-automation-archetype-final-audit.md` §6/§19 track each one; `CLAUDE.md` §8 is the operative list.
+- **`npm run quality` green is necessary, not sufficient.** It is evidence of correctness *only inside the measured scope of the "Scope" column above*. The residual gaps named there — plus `.ts` files outside `tsconfig.json`'s `include`, which are never typechecked, `.js` files, which carry no guardrails at all, and above all the two **path-anchored** limits in the last two rows — mean architectural review by a human (or by `automation-reviewer`, see [AI-Assisted Workflow](#ai-assisted-workflow)) still matters. `docs/history/ai-foundation-readiness-final.md` §7 and `docs/history/ai-automation-archetype-final-audit.md` §6/§19 track each one; `CLAUDE.md` §8 is the operative list.
 - **Not every convention in this README is machine-enforced.** The locator conventions (static → `private readonly` field; parameterized → private factory), "keep Steps thin", and "reuse before creating" are review-enforced: they are how this codebase is written, but no rule fails the build if you deviate.
 
 See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule, and `CLAUDE.md` for the operating contract an AI agent follows in this repo.
@@ -630,4 +630,4 @@ Module-level `AGENTS-*.md` files (`src/database/AGENTS-database.md`, `support/AG
 
 `CLAUDE.md` (repo root) is the operating contract for Claude Code and any derived agent: the canonical UI flow, the layer boundaries, which invariants are machine-enforced vs. review-enforced, which infrastructure requires explicit authorization to modify, the AI-assisted workflow (§17), and the definition of done.
 
-`.claude/` holds that layer's own definitions — `agents/qa-analyst.md`, `agents/automation-engineer.md`, `agents/automation-reviewer.md`, `skills/qa-automate/SKILL.md` and `settings.json` — and `.mcp.json` declares the project-scoped Playwright MCP server. See [AI-Assisted Workflow](#ai-assisted-workflow) for what they do; `docs/ai-automation-archetype-final-audit.md` and `docs/ai-automation-archetype-final-readiness.md` record how that layer was audited and where it stands.
+`.claude/` holds that layer's own definitions — `agents/qa-analyst.md`, `agents/automation-engineer.md`, `agents/automation-reviewer.md`, `skills/qa-automate/SKILL.md` and `settings.json` — and `.mcp.json` declares the project-scoped Playwright MCP server. See [AI-Assisted Workflow](#ai-assisted-workflow) for what they do; `docs/history/ai-automation-archetype-final-audit.md` and `docs/ai-automation-archetype-final-readiness.md` record how that layer was audited and where it stands.

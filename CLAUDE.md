@@ -256,8 +256,8 @@ arquitectónica depende de review (§8).
 > `npm run quality` verde es **obligatorio**, pero **no sustituye** review arquitectónico
 > humano. Existen caminos donde código incorrecto todavía pasa el gate en verde.
 
-Fuente medida: `docs/ai-foundation-readiness-final.md` §7 y
-`docs/ai-automation-archetype-final-audit.md` §6 y §19.
+Fuente medida: `docs/history/ai-foundation-readiness-final.md` §7 y
+`docs/history/ai-automation-archetype-final-audit.md` §6 y §19.
 
 | Finding | Qué sigue pasando en verde | Consecuencia para Claude |
 |---|---|---|
@@ -276,7 +276,7 @@ Fuente medida: `docs/ai-foundation-readiness-final.md` §7 y
 | **F-13 / F-14** | Aliasear `process`; directorios `.tmp-*` invisibles al walker | Informativos. |
 
 `F-17` y `F-18` son, respectivamente, los findings `H-01` y `M-05` de
-`docs/ai-automation-archetype-final-audit.md`, incorporados acá por T20.1.
+`docs/history/ai-automation-archetype-final-audit.md`, incorporados acá por T20.1.
 
 ### 8.1. Qué está garantizado y qué no
 
@@ -468,11 +468,11 @@ propuesta que obligue a un QA a abrir `src/base/**`, `support/world.ts` o
 | Mapa de arquitectura para contribuidores | `AGENTS.md` |
 | CustomWorld, hooks, ciclo de vida de DB | `support/AGENTS-support.md` |
 | Oracle, repositories, QueryBuilder | `src/database/AGENTS-database.md` |
-| Enforcement real medido + limitaciones | `docs/ai-foundation-readiness-final.md` |
-| Auditoría previa (findings originales) | `docs/ai-foundation-final-audit.md` |
+| Enforcement real medido + limitaciones | `docs/history/ai-foundation-readiness-final.md` |
+| Auditoría previa (findings originales) | `docs/history/ai-foundation-final-audit.md` |
 | Rationale de cada guardrail | `docs/refactor-progress-ia/` |
 | Capa AI-assisted (agentes, skill, gates, MCP) | §17 de este archivo · `.claude/agents/**` · `.claude/skills/qa-automate/SKILL.md` |
-| Auditoría adversarial de la capa IA | `docs/ai-automation-archetype-final-audit.md` |
+| Auditoría adversarial de la capa IA | `docs/history/ai-automation-archetype-final-audit.md` |
 | Estado de readiness vigente | `docs/ai-automation-archetype-final-readiness.md` |
 
 ---

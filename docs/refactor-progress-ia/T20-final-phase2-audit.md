@@ -5,7 +5,7 @@
 **Branch:** `feature/claude-ai-integration`
 **Baseline commit:** `b5a0969` (refactor: promote SauceDemo as canonical UI example)
 **Entorno:** Node v24.13.1 · npm 11.8.0 · Claude Code 2.1.265 · Windows 11
-**Reporte completo:** [docs/ai-automation-archetype-final-audit.md](../ai-automation-archetype-final-audit.md)
+**Reporte completo:** [docs/ai-automation-archetype-final-audit.md](../history/ai-automation-archetype-final-audit.md)
 
 ---
 
@@ -306,7 +306,7 @@ exit 1**. El suite E2E es real y puede fallar de verdad.
 ## 19. Findings
 
 **0 BLOCKER · 1 HIGH · 5 MEDIUM · 12 LOW.** Detalle completo, con evidencia y reproducción, en
-[docs/ai-automation-archetype-final-audit.md](../ai-automation-archetype-final-audit.md) §19.
+[docs/ai-automation-archetype-final-audit.md](../history/ai-automation-archetype-final-audit.md) §19.
 
 - **H-01 [HIGH]** — `CLAUDE.md` §8 garantiza que *"no se puede romper la jerarquía UI"*; es falso.
   Clase Page-like fuera de `src/pages/**` + import directo desde un Step + `goto()` público →

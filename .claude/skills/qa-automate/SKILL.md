@@ -14,7 +14,7 @@ Leé (si no lo tenés ya en contexto) `CLAUDE.md` antes de arrancar. Los tres ag
 `.claude/agents/` y están validados **en runtime** — descubrimiento del agente, tool list efectiva
 y dry runs controlados (`docs/refactor-progress-ia/T13-claude-agents.md`,
 `docs/refactor-progress-ia/T13.1-runtime-validation.md`,
-`docs/ai-automation-archetype-final-audit.md` §12–§13). No existe hoy un validador estático que
+`docs/history/ai-automation-archetype-final-audit.md` §12–§13). No existe hoy un validador estático que
 verifique estos archivos: `claude plugin validate` sobre `.claude/agents` devuelve verde
 inspeccionando **cero** archivos, porque estos agentes son project-scoped y no un plugin — no lo
 uses como evidencia de nada. Este skill no modifica a los agentes, no los reemplaza, y no crea un

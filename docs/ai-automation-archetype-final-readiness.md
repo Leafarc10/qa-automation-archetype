@@ -4,7 +4,7 @@
 **Branch:** `feature/claude-ai-integration`
 **Baseline commit:** `7c8f929` (docs: record final phase 2 adversarial audit)
 **Node:** v24.13.1 · **npm:** 11.8.0
-**Supersedes (as the current state):** [docs/ai-automation-archetype-final-audit.md](./ai-automation-archetype-final-audit.md) — that audit remains the authoritative record of what was found **before** T20.1 and was deliberately left unmodified.
+**Supersedes (as the current state):** [docs/history/ai-automation-archetype-final-audit.md](./history/ai-automation-archetype-final-audit.md) — that audit remains the authoritative record of what was found **before** T20.1 and was deliberately left unmodified.
 **Task record:** [docs/refactor-progress-ia/T20.1-contract-coherence.md](./refactor-progress-ia/T20.1-contract-coherence.md)
 
 ---
@@ -174,7 +174,7 @@ path) produced 2 scenarios failed, exit 1.
 | Agent contracts | `.claude/agents/*.md` |
 | Workflow orchestration | `.claude/skills/qa-automate/SKILL.md` |
 | Permission model | `.claude/settings.json` |
-| Adversarial audit that produced these findings | `docs/ai-automation-archetype-final-audit.md` |
+| Adversarial audit that produced these findings | `docs/history/ai-automation-archetype-final-audit.md` |
 | Contract-coherence pass that closed them | `docs/refactor-progress-ia/T20.1-contract-coherence.md` |
 | Per-guardrail design rationale | `docs/refactor-progress-ia/` |
 

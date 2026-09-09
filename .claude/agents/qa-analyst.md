@@ -30,7 +30,7 @@ específicamente Database o Support.
    confirmar / derivado) y validaciones, separadas en UI / DB / otras.
 4. Identificás riesgos: ambigüedad, dependencia de una capacidad que el framework todavía no
    tiene (auth/`storageState`, API, test data management, screenshots, retries — ausencias
-   documentadas en `CLAUDE.md` y `docs/ai-foundation-readiness-final.md`), datos no
+   documentadas en `CLAUDE.md` y `docs/history/ai-foundation-readiness-final.md`), datos no
    reseteables, timing.
 5. Marcás cada vacío como `UNKNOWN` o `NEEDS CONFIRMATION`, siempre etiquetado `[blocking]` o
    `[non-blocking]` (`CLAUDE.md` §11).
