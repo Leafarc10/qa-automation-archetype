@@ -23,7 +23,7 @@ import ts from 'typescript';
  * T05's `no-restricted-properties` guardrail already covers it precisely
  * (`process.env.X` and `process.env['X']`, in every file except
  * `src/config/**` and `*.test.ts`). Its one known gap — `const { env } =
- * process` — was evaluated in docs/ai-foundation-plan.md and deliberately
+ * process` — was evaluated in docs/history/ai-foundation-plan.md and deliberately
  * left open: closing it would add real complexity for a pattern nobody uses
  * in this codebase. Architecture tests exist to complement ESLint's blind
  * spots, not to re-implement guardrails ESLint already enforces.
@@ -263,7 +263,7 @@ describe('architecture — CustomWorld holds only infrastructure state', () => {
 //
 //  - `createRequire` + `require('oracledb')`, the actual pattern
 //    OracleDatabaseClient.ts itself uses, generalized (T10.3, closing finding
-//    F-02 of docs/ai-foundation-final-audit.md) to any local binding name the
+//    F-02 of docs/history/ai-foundation-final-audit.md) to any local binding name the
 //    call is made through — not just a variable literally named `require`.
 //    The audit demonstrated that renaming it (`const req = createRequire(...);
 //    req('oracledb')`) defeated the original, name-literal check.
@@ -435,7 +435,7 @@ describe('architecture — every Feature file has at least one tag', () => {
 
 // ---------------------------------------------------------------------------
 // A9/A10 — UI hierarchy invariants (T10.1, closing finding F-01 of
-// docs/ai-foundation-final-audit.md).
+// docs/history/ai-foundation-final-audit.md).
 //
 // Before this test existed, nothing stopped a new Component from extending
 // BasePage instead of BaseComponent — regaining goto/reload/waitForUrlContains,
@@ -534,7 +534,7 @@ describe('architecture — Components extend BaseComponent', () => {
 
 // ---------------------------------------------------------------------------
 // A11 — Component root scoping (T10.1b, closing the remaining aspect of
-// finding F-01 from docs/ai-foundation-final-audit.md): a concrete Component
+// finding F-01 from docs/history/ai-foundation-final-audit.md): a concrete Component
 // must build every locator from its own `root: Locator` (inherited from
 // BaseComponent), never from `this.page` directly. None of BaseUiObject's 17
 // shared methods reference `this.page` themselves — they all operate on a
@@ -607,7 +607,7 @@ describe('architecture — Components scope UI access through root, not this.pag
 
 // ---------------------------------------------------------------------------
 // A12 — Unit test discovery guardrail (T10.2, closing finding F-04 from
-// docs/ai-foundation-final-audit.md): every *.test.ts file in the repo must
+// docs/history/ai-foundation-final-audit.md): every *.test.ts file in the repo must
 // live under one of test:unit's discovery roots (src/, support/, features/ —
 // the same three roots tsconfig.json's `include` already recognizes as real
 // TypeScript source). Before this test existed, a *.test.ts placed anywhere

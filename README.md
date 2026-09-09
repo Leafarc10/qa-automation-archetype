@@ -19,6 +19,7 @@ A reusable end-to-end testing archetype: Page Object Model, reusable Components,
 - [Reporting](#reporting)
 - [Code Quality](#code-quality)
 - [Architecture Guardrails](#architecture-guardrails)
+- [AI-Assisted Workflow](#ai-assisted-workflow)
 - [Continuous Integration](#continuous-integration)
 - [Recommended Workflow](#recommended-workflow)
 - [Best Practices](#best-practices)
@@ -38,8 +39,9 @@ This project is a template for automated end-to-end testing, built around:
 - An optional **Oracle database layer**, built behind a small `DatabaseClient` contract so a repository never depends on the driver directly.
 - **ESLint + Prettier** as static quality gates.
 - A minimal **GitHub Actions** workflow.
+- An optional **AI-assisted automation layer** (three Claude Code agents behind explicit human gates, plus a project-scoped Playwright MCP server) — see [AI-Assisted Workflow](#ai-assisted-workflow).
 
-It ships with one small, real, working example (UI) and one neutral database repository (used only in isolated validations today, not yet wired to a Cucumber scenario) — enough to show the pattern without pretending to be a full test suite for any particular application.
+It ships with one real, working **canonical UI example** — a full checkout flow against [SauceDemo](https://www.saucedemo.com/), a public demo store — and one neutral database repository (used only in isolated validations today, not yet wired to a Cucumber scenario). Neither is a real, production application: they exist to show the pattern without pretending to be a full test suite for any particular app.
 
 ## Tech Stack
 
@@ -128,14 +130,14 @@ A Step must **never**:
 - access `this.page`, `this.context`, or `this.browser` directly;
 - import a Page, a Component, or anything under `src/database/**`;
 - import `playwright` or `@playwright/test` directly;
-- construct a Page or Repository manually (`new ExamplePage(page)`, `new ExampleRepository(client)`);
+- construct a Page or Repository manually (`new SauceDemoLoginPage(page)`, `new ExampleRepository(client)`);
 - contain locators or run SQL directly.
 
 ## Project Structure
 
 ```text
 features/
-  example/            Gherkin feature(s)
+  sauceDemo/           Gherkin feature(s) — the canonical UI example (SauceDemo checkout)
   steps/               Step definitions
 support/
   world.ts             CustomWorld (browser/context/page, Pages, repositories, testContext)
@@ -145,7 +147,7 @@ src/
   base/                BaseUiObject (actions/waits/assertions shared by Pages and Components)
   config/              Central, typed configuration (reads .env)
   pages/               Page Objects (BasePage + concrete pages)
-  components/          Reusable UI Components (BaseComponent + concrete components)
+  components/          Reusable UI Components (BaseComponent contract only — no concrete Component today)
   pageContainer/        Pages container (composes Page Objects)
   database/
     clients/           DatabaseClient contract + OracleDatabaseClient
@@ -164,7 +166,7 @@ Each of these folders owns one responsibility: `base/` owns shared UI infrastruc
 
 ### Prerequisites
 
-- **Node.js** — a recent LTS. CI runs Node 24; any reasonably current Node version works locally.
+- **Node.js** — **>= 24.12** (`engines.node` in `package.json`; CI runs Node 24). This is a hard requirement, not a suggestion: `npm run test:unit` relies on Node's native TypeScript type stripping to run `*.test.ts` under `node --test`. On an older Node the unit/architecture suites fail with a confusing parse error rather than a clear engine message.
 - **npm** (ships with Node).
 - **Git**.
 - **Playwright browsers** (installed via `npx playwright install`, see below).
@@ -204,7 +206,7 @@ cp .env.example .env
 
 | Variable | Default | Required | Description |
 |---|---|---|---|
-| `BASE_URL` | *(none)* | Only for UI scenarios | Base URL the UI example navigates to. `.env.example` ships `https://playwright.dev`. |
+| `SAUCEDEMO_BASE_URL` | `https://www.saucedemo.com` | No | Base URL the canonical UI example — the SauceDemo checkout scenarios (`features/sauceDemo/checkout.feature`) — navigates to. Defaults to the public demo site, so no configuration is needed in CI. |
 | `HEADLESS` | `true` | No | `true`/`false` — whether Playwright launches the browser headless. |
 | `BROWSER` | `chromium` | No | `chromium`, `firefox`, or `webkit`. |
 | `DEFAULT_TIMEOUT_MS` | `120000` | No | Default Cucumber step/scenario timeout, in milliseconds. |
@@ -216,7 +218,7 @@ cp .env.example .env
 
 With `DB_ENABLED=false` (the default), none of the `DB_*`/`ORACLE_CLIENT_LIB_DIR` variables are needed, and `oracledb` is never even loaded into the process.
 
-`src/config/index.ts` is the single owner of `process.env` in this codebase — enforced automatically (see [Architecture Guardrails](#architecture-guardrails)). Every other module consumes the typed `config` object (or `requireBaseUrl()`) instead of reading environment variables itself. Validation is fail-fast: an invalid value (an unrecognized `HEADLESS`/`BROWSER`, a non-numeric or non-positive `DEFAULT_TIMEOUT_MS`, or `DB_ENABLED=true` missing a required credential) throws immediately when the module is first imported, before any scenario runs — covered by `src/config/index.test.ts`.
+`src/config/index.ts` is the single owner of `process.env` in this codebase — enforced automatically (see [Architecture Guardrails](#architecture-guardrails)). Every other module consumes the typed `config` object (or `requireSauceDemoBaseUrl()`) instead of reading environment variables itself. Validation is fail-fast: an invalid value (an unrecognized `HEADLESS`/`BROWSER`, a non-numeric or non-positive `DEFAULT_TIMEOUT_MS`, or `DB_ENABLED=true` missing a required credential) throws immediately when the module is first imported, before any scenario runs — covered by `src/config/index.test.ts`.
 
 ## Running Tests
 
@@ -233,7 +235,7 @@ All commands below run through `cucumber-js --config cucumber.js`, with `cucumbe
 Example:
 
 ```bash
-DB_ENABLED=false HEADLESS=true BROWSER=chromium BASE_URL=https://playwright.dev npm test
+DB_ENABLED=false HEADLESS=true BROWSER=chromium npm test
 ```
 
 (On Windows PowerShell, set each variable with `$env:NAME = "value"` first, or use `.env`.)
@@ -247,49 +249,52 @@ DB_ENABLED=false HEADLESS=true BROWSER=chromium BASE_URL=https://playwright.dev 
 | `@regression` | The broader functional set for a feature. |
 | `@db` | Reserved for scenarios that require a real database. No feature uses it yet (see [Database Testing](#database-testing)). |
 
-Current example feature:
+Current canonical feature:
 
 ```gherkin
 @ui @regression
-Feature: Example application
+Feature: SauceDemo checkout
 
   @smoke
-  Scenario: The homepage shows the expected heading and call to action
+  Scenario: Complete checkout for a single product
     ...
 
-  Scenario: The main navigation exposes the documentation link
+  Scenario: Postal code is required to continue checkout
     ...
 ```
 
 ## UI Testing
 
-### The example
+### The canonical example: SauceDemo checkout
 
-`features/example/example.feature` opens `https://playwright.dev` (a free, public, no-login demo site — chosen because it has a real, reusable navigation component to demonstrate the Component pattern) and checks its main heading, a call-to-action link, and its navigation bar.
+`features/sauceDemo/checkout.feature` is this archetype's **canonical UI example / reference implementation** — not a production application. It drives a full checkout against [SauceDemo](https://www.saucedemo.com/), a free, public demo store whose credentials are published on its own login page, covering: login, navigation, forms, a positive end-to-end scenario, and a negative (validation error) scenario. Read it to see the Page Object pattern, central configuration, and thin Steps applied to a real, multi-screen flow.
 
 Flow:
 
 ```text
-example.feature
+checkout.feature
    ↓
-example.steps.ts   (this.pages.example...)
+checkout.steps.ts   (this.pages.sauceDemo*...)
    ↓
-Pages.example       (ExamplePage)
-   ↓
-ExamplePage          (extends BasePage; composes navigation)
-   ↓
-ExampleNavigationComponent  (extends BaseComponent; scoped to its root, the <nav>)
+Pages.sauceDemo*     (SauceDemoLoginPage, SauceDemoInventoryPage, SauceDemoCartPage,
+   ↓                  SauceDemoCheckoutInfoPage, SauceDemoCheckoutOverviewPage,
+   ↓                  SauceDemoCheckoutCompletePage — one Page per real screen)
+Playwright
 ```
 
 A step, in full:
 
 ```ts
-Given('I open the example application', async function (this: CustomWorld) {
-  await this.pages.example.open();
-});
+Given(
+  'I log in to SauceDemo as {string} with password {string}',
+  async function (this: CustomWorld, username: string, password: string) {
+    await this.pages.sauceDemoLogin.open();
+    await this.pages.sauceDemoLogin.login(username, password);
+  }
+);
 ```
 
-`ExamplePage.open()` reads the URL from config (`requireBaseUrl()`) — never hardcoded in a Feature, Step, Page, or Component.
+`SauceDemoLoginPage.open()` reads the URL from config (`requireSauceDemoBaseUrl()`) — never hardcoded in a Feature, Step, Page, or Component. There is no Component in this flow today: every SauceDemo screen is driven directly by its Page Object (see [Components](#components) for why none was introduced here).
 
 ### Adding a new UI test
 
@@ -310,25 +315,31 @@ Given('I open the example application', async function (this: CustomWorld) {
 - **Parameterized** (depends on a runtime value) — a private factory method that returns a `Locator`, never built inline inside an action/assertion method.
 
 ```ts
-export class ExamplePage extends BasePage {
-  private readonly heading: Locator; // static
+export class SauceDemoInventoryPage extends BasePage {
+  private readonly cartBadge: Locator; // static
 
   constructor(page: Page) {
     super(page);
-    this.heading = page.getByRole('heading', { level: 1 });
+    this.cartBadge = page.locator('[data-test="shopping-cart-badge"]');
   }
 
-  async expectHeadingToContain(text: string) {
-    await this.expectContainsText(this.heading, text);
+  async expectCartBadgeCount(count: string) {
+    await this.expectText(this.cartBadge, count);
   }
 
-  async expectLinkVisible(linkName: string) {
-    await this.waitForVisible(this.linkByName(linkName)); // consumes the factory
+  async addProductToCart(productName: string) {
+    await this.click(this.addToCartButton(productName)); // consumes the factory
   }
 
-  private linkByName(linkName: string): Locator {
-    // parameterized: a factory, never inlined into expectLinkVisible above
-    return this.page.getByRole('link', { name: linkName, exact: true });
+  private addToCartButton(productName: string): Locator {
+    // parameterized: a factory, never inlined into addProductToCart above
+    return this.productCard(productName).getByRole('button', { name: 'Add to cart' });
+  }
+
+  private productCard(productName: string): Locator {
+    return this.page
+      .locator('[data-test="inventory-item"]')
+      .filter({ has: this.page.getByRole('link', { name: productName, exact: true }) });
   }
 }
 ```
@@ -340,23 +351,21 @@ Prefer semantic locators (`getByRole`, `getByLabel`, `getByText`, `getByTestId`)
 Use a Component for a reusable, identifiable region of a page: navigation bars, headers, sidebars, modals, widgets that appear across multiple pages or repeat within one. `BaseComponent` (`src/components/base/BaseComponent.ts`) scopes a Component to its own `root: Locator`, received in the constructor alongside `page`:
 
 ```ts
-export class ExampleNavigationComponent extends BaseComponent {
+export class SomeNavigationComponent extends BaseComponent {
   constructor(page: Page) {
     super(page, page.getByRole('navigation', { name: 'Main' }));
   }
 }
 ```
 
-Every locator inside the Component is built from `this.root` — never `this.page` directly — following the same static/parameterized convention as Pages. A Component never gets `goto`/`reload`/`waitForUrlContains`; those stay exclusive to `BasePage` (the type system rejects them, not just a convention).
-
-A Page **composes** its Components as properties — it does not inherit from them:
+**There is no concrete Component in this repo today.** SauceDemo's checkout flow (the canonical UI example) doesn't have a reusable, identifiable region that would justify one, so none was created — `src/components/` holds only the `BaseComponent` contract shown above, illustrative rather than a real, running file. Don't create a Component just to split a file, or to have "an example of one"; it should represent something a person would point to and call "the nav" or "the modal", composed as a property of a Page (never inherited from):
 
 ```text
-ExamplePage
-  └── navigation: ExampleNavigationComponent
+SomePage
+  └── navigation: SomeNavigationComponent
 ```
 
-Don't create a Component just to split a file; it should represent something a person would point to and call "the nav" or "the modal".
+Every locator inside a Component is built from `this.root` — never `this.page` directly — following the same static/parameterized convention as Pages. A Component never gets `goto`/`reload`/`waitForUrlContains`; those stay exclusive to `BasePage` (the type system rejects them, not just a convention).
 
 ## Database Testing
 
@@ -436,23 +445,76 @@ Both come from Cucumber's own built-in formatters (configured in `cucumber.js`) 
 
 ## Architecture Guardrails
 
-`npm run quality` doesn't just check style — ESLint (`eslint.config.js`) and the architecture tests (`src/architecture.test.ts`, part of `test:unit`) automatically enforce the conventions used throughout this README, so a violation fails the gate instead of relying on a reviewer to catch it:
+`npm run quality` doesn't just check style — ESLint (`eslint.config.js`) and the architecture tests (`src/architecture.test.ts`, part of `test:unit`) automatically enforce most of the conventions used throughout this README, so a violation fails the gate instead of relying on a reviewer to catch it.
 
-| Rule | Enforced by |
-|---|---|
-| No Playwright Test runner APIs (`test`, `describe`, `it`, `beforeAll`/`beforeEach`/`afterAll`/`afterEach`) from `@playwright/test` — `expect` and types remain allowed | ESLint |
-| No `waitForTimeout(...)` anywhere, including Step Definitions | ESLint |
-| `process.env` only inside `src/config/**` and `*.test.ts` | ESLint |
-| `oracledb` only imported/required from `src/database/clients/OracleDatabaseClient.ts` | ESLint + architecture test (the architecture test also catches the `createRequire`/`require` form ESLint can't see) |
-| Step Definitions never import Playwright, a Page, a Component, or the database layer, and never touch `this.page`/`this.context`/`this.browser` | ESLint |
-| No `*.spec.ts` file anywhere in the repo | ESLint + architecture test |
-| No `playwright.config.*` file anywhere in the repo | ESLint + architecture test |
-| No npm script invokes `playwright test` | Architecture test |
-| `setWorldConstructor` is registered exactly once, from `support/world.ts` | Architecture test |
-| `CustomWorld` declares only infrastructure state (`browser`, `context`, `page`, `pages`, `repositories`, `testContext`) — no business fields | Architecture test |
-| Every `.feature` file carries at least one Cucumber tag | Architecture test |
+The table below states each rule's **measured** scope (see `docs/history/ai-foundation-readiness-final.md`): the "Scope" column names the exact reach of the check, so a rule that holds only for `.ts` files, or only for one import form, says so rather than reading as absolute.
 
-See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, and `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule.
+| Rule | Enforced by | Scope |
+|---|---|---|
+| No Playwright Test runner APIs (`test`, `describe`, `it`, `beforeAll`/`beforeEach`/`afterAll`/`afterEach`) from `@playwright/test` — `expect` and types remain allowed | ESLint (G1) | Static `import` in `.ts`; a dynamic `await import('@playwright/test')` is not caught |
+| No `waitForTimeout(...)` | ESLint (G2) | `.ts` files only (`.js` files carry no guardrails) |
+| `process.env` only inside `src/config/**` and `*.test.ts` | ESLint (G3) | `.ts` files; covers `process.env.X`, `process.env['X']`, `const env = process.env` and destructuring |
+| `oracledb` only referenced from `src/database/clients/OracleDatabaseClient.ts` | ESLint (G4) + architecture test (A6) | A6 also catches `await import('oracledb')` and a **named** `createRequire` import with one assignment hop; a default/namespace `node:module` import still escapes |
+| Step Definitions never import Playwright, a Page, a Component, or the database layer, and never touch `this.page`/`this.context`/`this.browser` | ESLint (G5) | Covers `playwright`, `@playwright/test`, `oracledb` and relative `src/pages`/`src/components`/`src/database` paths; `playwright-core` is **not** in the list |
+| No SQL in Step Definitions | Structural (G5 + `protected` members of `BaseRepository`) | No dedicated rule: Steps cannot import the database layer, and `execute`/`select`/`insert`/`update`/`delete` are `protected` |
+| No `*.spec.ts` file anywhere in the repo | ESLint (G7) + architecture test (A2) | `.ts` only — a `.spec.js` is not caught |
+| No `playwright.config.*` file anywhere in the repo | ESLint (G8) + architecture test (A1) | Any extension (A1 is a filesystem check) |
+| No npm script invokes `playwright test` | Architecture test (A3) | `package.json` scripts |
+| `setWorldConstructor` is registered exactly once, from `support/world.ts` | Architecture test (A4) | Direct calls by that name; an aliased import escapes |
+| `CustomWorld` declares only infrastructure state (`browser`, `context`, `page`, `pages`, `repositories`, `testContext`) — no business fields | Architecture test (A5) | Property declarations; getters and parameter properties escape |
+| Every `.feature` file carries at least one Cucumber tag | Architecture test (A7) | All `.feature` files |
+| Every concrete Page under `src/pages/**` extends `BasePage` | Architecture test (A9) | Every class declared in those files |
+| Every concrete Component under `src/components/**` extends `BaseComponent` (never `BasePage`) | Architecture test (A10) | Every class declared in those files |
+| Components scope UI access through `this.root`, never `this.page` | Architecture test (A11) | `this.page` accesses inside those classes; a locator built from the constructor's local `page` parameter escapes |
+| Every `*.test.ts` lives under a `test:unit` discovery root (`src/**`, `support/**`, `features/**`) so it actually runs | Architecture test (A12) | Whole repo (filesystem) |
+| UI classes live in a canonical path (`src/pages/**` / `src/components/**`) | **Nothing — review only** | The UI guardrails above are **path-anchored**. A Page-like class placed anywhere else (e.g. `src/screens/`), extending nothing and imported directly by a Step, passes the whole gate — see the note below |
+| A Step never navigates directly (`goto`, `reload`, `waitForUrlContains`) | **Nothing — review only** | Those three `BasePage` methods are public, so `this.pages.<page>.goto('https://anything')` from a Step is reachable and hardcodes a URL past central configuration |
+
+Two things this table deliberately does **not** claim:
+
+- **`npm run quality` green is necessary, not sufficient.** It is evidence of correctness *only inside the measured scope of the "Scope" column above*. The residual gaps named there — plus `.ts` files outside `tsconfig.json`'s `include`, which are never typechecked, `.js` files, which carry no guardrails at all, and above all the two **path-anchored** limits in the last two rows — mean architectural review by a human (or by `automation-reviewer`, see [AI-Assisted Workflow](#ai-assisted-workflow)) still matters. `docs/history/ai-foundation-readiness-final.md` §7 and `docs/history/ai-automation-archetype-final-audit.md` §6/§19 track each one; `CLAUDE.md` §8 is the operative list.
+- **Not every convention in this README is machine-enforced.** The locator conventions (static → `private readonly` field; parameterized → private factory), "keep Steps thin", and "reuse before creating" are review-enforced: they are how this codebase is written, but no rule fails the build if you deviate.
+
+See `eslint.config.js` and `src/architecture.test.ts` for the exact implementation, `docs/refactor-progress-ia/T05-eslint-guardrails.md`/`T06-architecture-tests.md` for the design rationale behind each rule, and `CLAUDE.md` for the operating contract an AI agent follows in this repo.
+
+## AI-Assisted Workflow
+
+This archetype ships with an **AI-assisted automation layer**, versioned in `.claude/` alongside the code. It is optional — every command in this README works without it — but if you use Claude Code in this repository, this is the workflow it follows. You do not have to read `.claude/**` to know it exists; this section is the summary.
+
+```text
+/qa-automate                     skill — the orchestrator is your main session, not a fourth agent
+      ↓
+qa-analyst                       requirement → scenarios → UNKNOWNs        (no MCP, no shell, no write)
+      ↓
+GATE 1                           you approve the QA Analysis
+      ↓
+automation-engineer  MODE: PLAN  proposes REUSE / CREATE / MODIFY — writes nothing
+      ↓
+GATE 2                           you approve the Automation Plan (or request changes, or cancel)
+      ↓
+automation-engineer  MODE: IMPLEMENT + the literal marker `PLAN APPROVED`
+      ↓
+automation-reviewer              independent review, read-only over the repo
+```
+
+| Agent | Responsibility | Repo write | Shell | Playwright MCP |
+|---|---|---|---|---|
+| `qa-analyst` | Turns a requirement/user story/bug into expected behavior, positive and negative scenarios, preconditions, test data, validations, risks, and explicit `UNKNOWN` / `NEEDS CONFIRMATION` items. Writes no code, no Gherkin, no locators. | none | no | **no** — withheld on purpose: MCP shows what the app *does*; this agent decides what it *should* do |
+| `automation-engineer` | The only agent that can write. `MODE: PLAN` proposes the minimal file set; `MODE: IMPLEMENT` writes exactly those files, then runs `npm run quality` and the relevant E2E and reports the evidence. | `Edit`, `Write` | yes | **yes** — 10 tools |
+| `automation-reviewer` | Independent review against a fixed checklist. It re-reads the working tree and re-runs `quality`/E2E itself rather than trusting the Engineer's reported exit codes, then issues `APPROVED` or `CHANGES_REQUESTED`. Never edits anything. | none | yes | **yes** — a 5-tool subset, with no form-input tools |
+
+**The gates are human, and they are real:**
+
+- Only you approve a QA Analysis or a Plan. **Silence is never approval** — the flow waits for an explicit decision.
+- `CHANGES_REQUESTED` hands control back to you. Nothing is auto-corrected, and there is no automatic Engineer ↔ Reviewer loop.
+- `VALIDATION_FAILED` stops the flow; the Reviewer is not invoked.
+- No auto-approval and no silent approval: the Reviewer does not approve with open findings, and it receives only the three handoff documents plus the working tree — never the Engineer's transcript or reasoning.
+- **`npm run quality` green does not replace the review** (see [Architecture Guardrails](#architecture-guardrails)).
+- Protected infrastructure (base classes, `support/**`, DB infrastructure, `eslint.config.js`, `src/architecture.test.ts`, `tsconfig.json`, `cucumber.js`, `package.json`, `package-lock.json`, `.github/workflows/**`, `CLAUDE.md`, `.claude/**`, `.mcp.json`) requires your explicit authorization — most of it is also behind a `permissions.ask` rule in `.claude/settings.json`, so an edit there raises a real confirmation prompt.
+
+**Playwright MCP** (`@playwright/mcp`, project-scoped in `.mcp.json`) gives the Engineer and the Reviewer a real browser for *observation* — accessibility tree, roles, accessible names, URLs — so a locator is grounded in what the application actually renders instead of guessed. It is a separate browser from the one the framework drives, and it never decides a business rule, a scenario, a correct value, or architecture.
+
+Where things live: `.claude/agents/*.md` (the three agent contracts), `.claude/skills/qa-automate/SKILL.md` (the orchestration), `.claude/settings.json` (the permission model), `.mcp.json` (the MCP server), and `CLAUDE.md` §17 (the operating contract's own summary of this layer).
 
 ## Continuous Integration
 
@@ -474,7 +536,7 @@ npm test
 Upload Cucumber reports (cucumber-reports artifact)
 ```
 
-CI runs with `DB_ENABLED=false` and the default `not @db` test suite — no Oracle credentials, no Oracle Instant Client, nothing to configure. `BASE_URL`/`HEADLESS`/`BROWSER`/`DB_ENABLED` are plain workflow `env` values (all public, non-sensitive) — not GitHub secrets.
+CI runs with `DB_ENABLED=false` and the default `not @db` test suite — no Oracle credentials, no Oracle Instant Client, nothing to configure. That suite is, today, exactly the canonical SauceDemo checkout scenarios. `SAUCEDEMO_BASE_URL`/`HEADLESS`/`BROWSER`/`DB_ENABLED` are plain workflow `env` values (all public, non-sensitive) — not GitHub secrets. `SAUCEDEMO_BASE_URL` is declared explicitly in the workflow (rather than relying only on the code default in `src/config/index.ts`) so the target CI validates is visible directly in `ci.yml`.
 
 Only Chromium is installed in CI, for a fast signal; Firefox/WebKit were validated manually but are not part of the automated pipeline yet.
 
@@ -519,6 +581,8 @@ Never commit:
 
 See `.gitignore` for the enforced rules.
 
+**About `standard_user` / `secret_sauce` in the canonical example:** those are the **public demo credentials SauceDemo publishes on its own login page**. They are not corporate, not secret, and not a pattern to copy — they are literals in a Feature only because the target application publishes them itself. Any real credential comes from environment configuration (`src/config/index.ts`), never from a Feature, Step, Page, or Component.
+
 ## Current Limitations
 
 This is an honest list — none of the following is implemented today:
@@ -528,7 +592,8 @@ This is an honest list — none of the following is implemented today:
 - No `@db` Feature exists yet, so `npm run test:db` currently runs 0 scenarios.
 - There is no API-testing layer.
 - CI installs and runs against Chromium only (Firefox/WebKit are validated manually, not in CI); Cucumber runs sequentially, with no parallelism or automatic retries configured.
-- The UI example depends on an external public site, `https://playwright.dev`, being reachable and keeping its current heading/navigation.
+- The canonical UI example depends on an external public site, `https://www.saucedemo.com`, being reachable and keeping its current behavior/copy.
+- There is no concrete Component in the repo today (see [Components](#components)) — only the `BaseComponent` contract. The pattern is documented and enforced (see [Architecture Guardrails](#architecture-guardrails)), but not demonstrated by a real, running file.
 - No authentication/session-reuse layer: `CustomWorld.init()` always creates a brand-new, empty `BrowserContext` — no `storageState`, no programmatic login, no session sharing between scenarios.
 - No Test Data Management layer — repositories build ad hoc queries; there is no seeding/factory framework.
 - No structured logging framework.
@@ -547,9 +612,6 @@ Possible future extensions — **not implemented**, listed to show where this ar
 
 ## Troubleshooting
 
-**`BASE_URL is required before navigating to an application.`**
-`BASE_URL` isn't set. Add it to `.env` or export it before running (see [Environment Configuration](#environment-configuration)).
-
 **Browser not installed / Playwright launch error**
 Run `npx playwright install` (or `npx playwright install chromium` if you only need the default suite).
 
@@ -557,7 +619,7 @@ Run `npx playwright install` (or `npx playwright install chromium` if you only n
 Set `DB_USER`, `DB_PASSWORD`, and `DB_CONNECT_STRING` — all three are required once `DB_ENABLED=true`.
 
 **`npm run format:check` fails**
-Run `npm run format` to apply Prettier's formatting, then re-check.
+Run `npm run format` to apply Prettier's formatting, then re-check. On Windows, this is most often line endings, not real style drift: `.gitattributes` normalizes the repository to LF and Prettier's `endOfLine: "auto"` (`.prettierrc.json`) accepts whatever line ending is already on disk, so `npm run quality` passes regardless of a contributor's local `core.autocrlf` setting.
 
 **`npm run lint` fails**
 Try `npm run lint:fix` for auto-fixable issues first, then address whatever remains manually.
@@ -565,3 +627,7 @@ Try `npm run lint:fix` for auto-fixable issues first, then address whatever rema
 ## Internal Documentation
 
 Module-level `AGENTS-*.md` files (`src/database/AGENTS-database.md`, `support/AGENTS-support.md`, and the root `AGENTS.md`) document implementation details for contributors and AI coding assistants working in this repository.
+
+`CLAUDE.md` (repo root) is the operating contract for Claude Code and any derived agent: the canonical UI flow, the layer boundaries, which invariants are machine-enforced vs. review-enforced, which infrastructure requires explicit authorization to modify, the AI-assisted workflow (§17), and the definition of done.
+
+`.claude/` holds that layer's own definitions — `agents/qa-analyst.md`, `agents/automation-engineer.md`, `agents/automation-reviewer.md`, `skills/qa-automate/SKILL.md` and `settings.json` — and `.mcp.json` declares the project-scoped Playwright MCP server. See [AI-Assisted Workflow](#ai-assisted-workflow) for what they do; `docs/history/ai-automation-archetype-final-audit.md` and `docs/ai-automation-archetype-final-readiness.md` record how that layer was audited and where it stands.

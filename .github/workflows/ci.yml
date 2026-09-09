@@ -15,8 +15,8 @@ jobs:
     timeout-minutes: 15
 
     env:
-      # Public demo app used by the UI example — not a secret.
-      BASE_URL: https://playwright.dev
+      # Public demo app used by the canonical UI example (SauceDemo checkout) — not a secret.
+      SAUCEDEMO_BASE_URL: https://www.saucedemo.com
       HEADLESS: 'true'
       BROWSER: chromium
       # Default CI run excludes @db: no Oracle credentials needed.

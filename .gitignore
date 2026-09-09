@@ -63,3 +63,17 @@ Thumbs.db
 # Internal refactor history
 # =========================
 docs/refactor-progress/
+
+# =========================
+# Claude Code local state
+# =========================
+# Per-machine MCP approvals and other local overrides Claude Code writes here;
+# never shared team config (that lives in .claude/settings.json).
+.claude/settings.local.json
+
+# =========================
+# Playwright MCP runtime artifacts
+# =========================
+# Accessibility snapshots that @playwright/mcp writes to disk on browser_navigate /
+# browser_snapshot, even without an explicit filename — not test output, not docs.
+.playwright-mcp/
